@@ -87,9 +87,14 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('prog', type=Path)
     ap.add_argument('path', type=Path)
+    ap.add_argument('--require-binary', action='store_true')
     args = ap.parse_args()
 
-    w = Watcher(args.prog.absolute(), args.path, is_raw_binary)
+    cond = is_hdf5
+    if args.require_binary:
+        cond = is_raw_binary
+
+    w = Watcher(args.prog.absolute(), args.path, cond)
     # w.snarf()
     # w.watch()
     w.watch_dumb()
