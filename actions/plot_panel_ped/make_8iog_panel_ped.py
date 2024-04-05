@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gs
@@ -205,14 +206,14 @@ def make_summary_plot(d, ax):
 def date_from_ped_filename(filename):
     #date_str = filename.split('-')[-1].split('.json')[0]
     #date_str = filename.split('-')[-1].split('CET.json')[0]
-    date_str = filename.split('-')[-1].split('_CDT.json')[0]
+    date_str = filename.split('-')[-1].split('_CDT.h5.panel_ped.json')[0]
     #timestamp = datetime.fromisoformat(date_str)
     print(date_str)
     #timestamp = datetime.strptime(date_str,"%Y_%m_%d_%H_%M%Z")
     timestamp = datetime.strptime(date_str,"%Y_%m_%d_%H_%M_%S")
     return timestamp
 
-def main(input_file):
+def main(input_file, output_file):
 
     timestamp = date_from_ped_filename(input_file)
 
@@ -254,13 +255,16 @@ def main(input_file):
     #make_summary_plot(d,summary_ax)
 
     #plt.show()
-    outname = input_file.split('.json')[0]+'_2x2.png'
-    fig.savefig(outname)
+    # outname = input_file.split('.json')[0]+'_2x2.png'
+    fig.savefig(output_file)
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--input_file', default=None, \
                         type=str, help='''JSON-formatted dict of \
                         chip_key:channel''', required=True)
+    parser.add_argument('--output_file', default=None, \
+                        type=str, help='''Output plot file''',
+                        required=True)
     args = parser.parse_args()
     main(**vars(args))

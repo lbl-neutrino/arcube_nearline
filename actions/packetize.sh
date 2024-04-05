@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -o errexit
+
 inbase=/global/cfs/cdirs/dune/www/data/2x2/CRS
 data_outbase=/global/cfs/cdirs/dune/www/data/2x2/nearline/packet
 log_outbase=/pscratch/sd/d/dunepr/logs/nearline/packet

@@ -34,6 +34,9 @@ pushd larpix-control
 pip install --editable .
 popd
 
+# For Kevin's plots
+pip install pyyaml
+
 cd "$basedir"
 
 confdir=$(realpath config)

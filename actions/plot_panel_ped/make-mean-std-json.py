@@ -1,19 +1,20 @@
+#!/usr/bin/env python3
 import json
 import numpy as np
 import argparse
 import h5py
 _default_input_file=None
-_default_file_prefix=None
+_default_output_file=None
 
 
 
 def main(input_file=_default_input_file, \
-         file_prefix=_default_file_prefix, \
+         output_file=_default_output_file, \
          **kwargs):
     if input_file==None:
         print('Provide HDF5 packet input file. Exiting.')
         return
-    if file_prefix==None:
+    if output_file==None:
         print('Provide output filename string. Exiting.')
         return
     d={}
@@ -57,7 +58,7 @@ def main(input_file=_default_input_file, \
             output[newkey]=[(-1,-1) for i in range(64)]
         output[newkey][int(ids[-1])]=(d[key]['mean'], d[key]['std'])
         
-    with open(file_prefix+'.json','w') as fout:
+    with open(output_file,'w') as fout:
         json.dump(output, fout, indent=4)
 
 
@@ -66,8 +67,8 @@ if __name__=='__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--input_file', default=_default_input_file, \
                         type=str, help='''HDF5 packet file''')
-    parser.add_argument('--file_prefix', default=_default_file_prefix, \
-                        type=str, help='''String prepended to file''')
+    parser.add_argument('--output_file', default=_default_output_file, \
+                        type=str, help='''JSON output file''')
     args=parser.parse_args()
     main(**vars(args))
 
