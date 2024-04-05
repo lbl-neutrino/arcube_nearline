@@ -1,0 +1,16 @@
+authsource: admin
+host: mongo.somewhere.net
+logdir: null
+name: nearline_db
+password: '123'
+port: 27017
+strm_lvl: INFO
+uri_mode: false
+user_indices: []
+username: root
+wf_user_indices: []
+mongoclient_kwargs:
+  timeoutMS: 0
+  socketTimeoutMS: 0
+  connectTimeoutMS: 0
+  serverSelectionTimeoutMS: 999999999
