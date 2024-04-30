@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 ##########################################
 ##                                      ##
 ##            ~ Light DQM ~             ##
@@ -861,15 +863,11 @@ def dark_count(wvfm_matrix, tick_start, tick_end, mod, output, MODULES):
 ##
 ## End Plotting Functions ##
 
-def main(flow_file):
+def main(input_file, output_file):
 
     ## open file ##
-    file = h5py.File(flow_file, 'r')
-    output_pdf_name = flow_file.split('.h5')[0]+'_OfflineDQM.pdf'
-    # temperarily, put output in this directory, not the same as the
-    # simulation file itself
-    output_pdf_name = output_pdf_name.split('/')[-1] # !!
-    
+    file = h5py.File(input_file, 'r')
+
     ## define the light waveform matrix ##
     light_wvfm_start = file['light/wvfm/data']['samples']
     ## mask out inactive channels ##
@@ -881,8 +879,8 @@ def main(flow_file):
     wvfm_all = np.zeros((wvfm.shape[0],wvfm['samples'].shape[1],wvfm['samples'].shape[2],wvfm['samples'].shape[3]))
     for i in range(wvfm.shape[0]):
         wvfm_all[i,:,:,:] = wvfm[i][0]
-    
-    with PdfPages(output_pdf_name) as output:
+
+    with PdfPages(output_file) as output:
         
         # First Plot: Check baseline average per channel in one file:
         bsline_pFile(wvfm_all, MOD, output, MODULES)
@@ -944,8 +942,7 @@ def main(flow_file):
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--flow_file', default=None, type=str,help='''string corresponding to the path of the flow_file output data file to be considered''')
+    parser.add_argument('--input_file', default=None, type=str,help='''string corresponding to the path of the flow_file output data file to be considered''')
+    parser.add_argument('--output_file', default=None, type=str, help='Output PDF file')
     args = parser.parse_args()
     main(**vars(args))
-
-

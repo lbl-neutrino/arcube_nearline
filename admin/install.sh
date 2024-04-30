@@ -56,6 +56,9 @@ cd ../../..
 
 pip install adc64format
 
+# For light DQM, etc.:
+pip install awkward
+
 cd "$basedir"
 
 confdir=$(realpath config)
