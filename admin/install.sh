@@ -37,6 +37,25 @@ popd
 # For Kevin's plots
 pip install pyyaml
 
+# pyyaml-include 2.x has breaking changes
+pip install pyyaml-include==1.3.2
+
+# install h5flow
+git clone -b main https://github.com/larpix/h5flow.git
+cd h5flow
+pip install -e .
+cd ..
+
+# install ndlar_flow
+git clone -b develop https://github.com/larpix/ndlar_flow.git
+cd ndlar_flow
+pip install -e .
+cd scripts/proto_nd_scripts
+./get_proto_nd_input.sh
+cd ../../..
+
+pip install adc64format
+
 cd "$basedir"
 
 confdir=$(realpath config)
