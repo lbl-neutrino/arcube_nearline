@@ -109,7 +109,7 @@ def main():
         cond = is_raw_binary
     elif args.ext:
         exts = [args.ext]
-        cond = lambda p: p.suffix.lower() == args.ext
+        cond = lambda p: p.suffix.lower() == f'.{args.ext}'
 
     w = Watcher(args.prog.absolute(), paths, exts, cond)
     # w.snarf()
