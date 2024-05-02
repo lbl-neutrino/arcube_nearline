@@ -20,10 +20,10 @@ class EventHandler(FileSystemEventHandler):
 
 
 class Watcher:
-    def __init__(self, prog: Path, path: Path, exts: list[str],
+    def __init__(self, prog: Path, paths: list[Path], exts: list[str],
                  cond: Callable[[Path], bool]):
         self.prog = prog
-        self.path = path
+        self.paths = paths
         self.exts = exts
         self.cond = cond
 
@@ -53,9 +53,10 @@ class Watcher:
         return self.db['fireworks'].find_one(q)
 
     def snarf(self):
-        for ext in self.exts:
-            for p in self.path.rglob(f'*.{ext}'):
-                self.maybe_make_firework(p)
+        for path in self.paths:
+            for ext in self.exts:
+                for p in path.rglob(f'*.{ext}'):
+                    self.maybe_make_firework(p)
 
     def watch_inotify(self):
         handler = EventHandler(self)
@@ -87,10 +88,19 @@ def is_raw_binary(p: Path):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('prog', type=Path)
-    ap.add_argument('path', type=Path)
+    ap.add_argument('--path', type=Path)
+    ap.add_argument('--path-file')
     ap.add_argument('--require-binary', action='store_true')
     ap.add_argument('--ext', help='File extension (if not h5 / hdf5)')
     args = ap.parse_args()
+
+    if args.path:
+        assert not args.path_file
+        paths = [args.path]
+    if args.path_file:
+        assert not args.path
+        paths = [Path(l.strip())
+                 for l in open(args.path_file).readlines()]
 
     exts = ['.h5', '.hdf5']
     cond = is_hdf5
@@ -100,7 +110,7 @@ def main():
         exts = [args.ext]
         cond = lambda p: p.suffix.lower() == args.ext
 
-    w = Watcher(args.prog.absolute(), args.path, cond, exts)
+    w = Watcher(args.prog.absolute(), paths, exts, cond)
     # w.snarf()
     # w.watch()
     w.watch_dumb()
