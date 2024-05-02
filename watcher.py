@@ -92,6 +92,7 @@ def main():
     ap.add_argument('--path-file')
     ap.add_argument('--require-binary', action='store_true')
     ap.add_argument('--ext', help='File extension (if not h5 / hdf5)')
+    ap.add_argument('--base-dir', type=Path)
     args = ap.parse_args()
 
     if args.path:
@@ -99,7 +100,7 @@ def main():
         paths = [args.path]
     if args.path_file:
         assert not args.path
-        paths = [Path(l.strip())
+        paths = [args.base_dir / Path(l.strip())
                  for l in open(args.path_file).readlines()]
 
     exts = ['.h5', '.hdf5']
