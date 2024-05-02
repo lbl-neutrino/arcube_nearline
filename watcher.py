@@ -20,10 +20,11 @@ class EventHandler(FileSystemEventHandler):
 
 
 class Watcher:
-    def __init__(self, prog: Path, path: Path,
+    def __init__(self, prog: Path, path: Path, exts: list[str],
                  cond: Callable[[Path], bool]):
         self.prog = prog
         self.path = path
+        self.exts = exts
         self.cond = cond
 
         self.seen_files = set()
@@ -52,7 +53,7 @@ class Watcher:
         return self.db['fireworks'].find_one(q)
 
     def snarf(self):
-        for ext in ['h5', 'hdf5']:
+        for ext in self.exts:
             for p in self.path.rglob(f'*.{ext}'):
                 self.maybe_make_firework(p)
 
@@ -88,13 +89,18 @@ def main():
     ap.add_argument('prog', type=Path)
     ap.add_argument('path', type=Path)
     ap.add_argument('--require-binary', action='store_true')
+    ap.add_argument('--ext', help='File extension (if not h5 / hdf5)')
     args = ap.parse_args()
 
+    exts = ['.h5', '.hdf5']
     cond = is_hdf5
     if args.require_binary:
         cond = is_raw_binary
+    elif args.ext:
+        exts = [args.ext]
+        cond = lambda p: p.suffix.lower() == args.ext
 
-    w = Watcher(args.prog.absolute(), args.path, cond)
+    w = Watcher(args.prog.absolute(), args.path, cond, exts)
     # w.snarf()
     # w.watch()
     w.watch_dumb()
