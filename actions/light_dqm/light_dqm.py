@@ -58,7 +58,7 @@ rasterize_plots()
 SAMPLE_RATE = 0.016 # us
 BIT = 4  # factor from unused ADC bits on LRS: would be nice to have in a resource .yaml
 PRE_NOISE = 1000 # Will need to be re-defined once we know beam timing
-THRESHOLD = 30 # For the FFT, used to define events with signal peaks
+THRESHOLD = 0 # For the FFT, used to define events with signal peaks
 ## If single module data: could use this for labeling ##
 MOD = 0
 ## Some sort of saturation value re:Livio ##
@@ -157,9 +157,9 @@ def noise_datasets(no_ped_adc, THRESHOLD):
     for i in adc_signal_indices:
         waveform = (no_ped_adc[i][0:PRE_NOISE])
         adc_normal_pretrig.append(np.array(waveform))
-        if len(adc_normal_pretrig)>2000:
+        if len(adc_normal_pretrig)>500:
             break
-    adc_normal_pretrig = np.array(adc_normal_pretrig[0:2000])
+    adc_normal_pretrig = np.array(adc_normal_pretrig[0:500])
 
     ns_wvfms = []
 
