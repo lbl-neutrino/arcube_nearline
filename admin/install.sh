@@ -63,7 +63,7 @@ cd "$basedir"
 
 confdir=$(realpath config)
 sed "s%{CONFIG_FILE_DIR}%$confdir%" config/templates/FW_config.template.yaml \
-    > fw_config/FW_config.yaml
+    > config/FW_config.yaml
 
 if [[ ! -e config/my_launchpad.yaml ]]; then
     cp config/templates/my_launchpad.template.yaml config/my_launchpad.yaml
