@@ -19,7 +19,10 @@ get_outpath() {
     realpath "$outbase/$reldir/$outname"
 }
 
-plotpath=$(get_outpath "$plot_outbase" pdf)
+plotpath1=$(get_outpath "$plot_outbase" main.pdf)
+plotpath2=$(get_outpath "$plot_outbase" baseline.pdf)
+plotpath3=$(get_outpath "$plot_outbase" dead_chan.pdf)
+
 logpath=$(get_outpath "$log_outbase" log)
 
 cd "$(dirname "${BASH_SOURCE[0]}")/light_dqm"
@@ -29,4 +32,8 @@ if [[ "$(stat -c %s "$inpath")" -gt 50000000000 ]]; then
     exit 1
 fi
 
-./light_dqm.py --input_file "$inpath" --output_file "$plotpath" 2>&1 | tee "$logpath"
+python3 light_dqm.py --input_file "$inpath" \
+    --output_file_1 "$plotpath1" \
+    --output_file_2 "$plotpath2" \
+    --output_file_3 "$plotpath3" \
+    2>&1 | tee "$logpath"
