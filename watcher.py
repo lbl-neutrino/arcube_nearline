@@ -110,7 +110,7 @@ def main():
         paths = [args.base_dir / Path(l.strip())
                  for l in open(args.path_file).readlines()]
 
-    exts = ['.h5', '.hdf5']
+    exts = ['h5', 'hdf5']
     cond = is_hdf5
     if args.require_binary:
         cond = is_raw_binary
