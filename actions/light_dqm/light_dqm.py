@@ -106,7 +106,7 @@ def baseline_graf(bsln_arr, MODULES, mod, output):
 
         axs[0].set_xlabel("LRS Baseline")
         axs[1].set_xlabel("LRS Baseline")
-        output.savefig()
+        plt.savefig(output)
         plt.close()
         
     else:
@@ -135,7 +135,7 @@ def baseline_graf(bsln_arr, MODULES, mod, output):
 
             axs[3,0].set_xlabel("LRS Baseline")
             axs[3,1].set_xlabel("LRS Baseline")
-        output.savefig()
+        plt.savefig(output)
         plt.close()
 ##
 ##
@@ -705,7 +705,7 @@ def maxamp_graf(mxamp_arr, MODULES, mod, output):
 
         axs[0].set_xlabel("LRS Dead Channels")
         axs[1].set_xlabel("LRS Dead Channels")
-        output.savefig()
+        plt.savefig(output)
         plt.close()
     else:
     # Loop through each subplot
@@ -734,7 +734,7 @@ def maxamp_graf(mxamp_arr, MODULES, mod, output):
 
             axs[3,0].set_xlabel("LRS Dead Channels")
             axs[3,1].set_xlabel("LRS Dead Channels")
-        output.savefig()
+        plt.savefig(output)
         plt.close()
 ##
 def maxAmp_pChanpFile(wvfm_all, mod, output1, output2, MODULES):
@@ -1220,9 +1220,9 @@ def main(input_file, output_file_1, output_file_2, output_file_3):
     wvfm_all = wvfm_alL.astype(float) - wvfm_alL[:,:,:,:50].mean(axis=-1, keepdims=True)
 
 
-    with PdfPages(output_file_1) as output1, \
-         PdfPages(output_file_2) as output2, \
-         PdfPages(output_file_3) as output3:
+    with PdfPages(output_file_1) as output1:
+        output2 = output_file_2
+        output3 = output_file_3
         
         # First Plots: Check baseline average per channel in one file:
         
@@ -1369,7 +1369,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--input_file', default=None, type=str,help='''string corresponding to the path of the flow_file output data file to be considered''')
     parser.add_argument('--output_file_1', default=None, type=str, help='Main Output PDF file')
-    parser.add_argument('--output_file_2', default=None, type=str, help='Baseline Offset Output PDF file')
-    parser.add_argument('--output_file_3', default=None, type=str, help='Dead Channels Output PDF file')
+    parser.add_argument('--output_file_2', default=None, type=str, help='Baseline Offset Output PNG file')
+    parser.add_argument('--output_file_3', default=None, type=str, help='Dead Channels Output PNG file')
     args = parser.parse_args()
     main(**vars(args))
