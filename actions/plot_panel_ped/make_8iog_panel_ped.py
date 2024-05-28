@@ -234,10 +234,10 @@ def main(input_file, output_file):
         # anode plots
         if iog in [5,6]:
             anode_xy(anode_rms_plots[iog-1],geo_v2b, chip_pix_v2b, vertical_lines_v2b, horizontal_lines_v2b, d, 'std', 10,iog)
-            anode_xy(anode_mean_plots[iog-1],geo_v2b, chip_pix_v2b, vertical_lines_v2b, horizontal_lines_v2b, d, 'mean', 50,iog)
+            anode_xy(anode_mean_plots[iog-1],geo_v2b, chip_pix_v2b, vertical_lines_v2b, horizontal_lines_v2b, d, 'mean', 150,iog)
         else:
             anode_xy(anode_rms_plots[iog-1],geo, chip_pix, vertical_lines, horizontal_lines, d, 'std', 10,iog)
-            anode_xy(anode_mean_plots[iog-1],geo, chip_pix, vertical_lines, horizontal_lines, d, 'mean', 50,iog)
+            anode_xy(anode_mean_plots[iog-1],geo, chip_pix, vertical_lines, horizontal_lines, d, 'mean', 150,iog)
 
 
     cbar_ax = fig.add_subplot(fig_grid[0,8])
