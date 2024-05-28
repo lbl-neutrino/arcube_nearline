@@ -27,9 +27,9 @@ if [[ "$(stat -c %s "$inpath")" -gt 50000000000 ]]; then
     exit 1
 fi
 
-cd _install/ndlar_flow
+cd $ROOT_OF_ARCUBE_NEARLINE/_install/ndlar_flow
 
-workflow='yamls/proto_nd_flow/workflows/light/light_event_building_adc64.yaml'
+workflow='yamls/proto_nd_flow/workflows/light/light_event_building_mpd.yaml'
 
 rm -f "$flowpath"
 

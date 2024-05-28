@@ -25,20 +25,18 @@ import numpy as np
 import matplotlib
 import h5py, glob, argparse
 import matplotlib.pyplot as plt
-from matplotlib.axes import Axes
 from scipy.fft import rfft, rfftfreq
 import awkward as ak
 import matplotlib as mpl
 import matplotlib.gridspec as gridspec
 from matplotlib import cm, colors
 import matplotlib.patches as mpatches
+from matplotlib.colors import LogNorm
 from scipy.signal import convolve
 from scipy.signal import find_peaks
 from matplotlib.ticker import (MultipleLocator, AutoMinorLocator, FixedLocator)
-from matplotlib.colors import LogNorm
-from datetime import datetime
 from matplotlib.backends.backend_pdf import PdfPages
-import emoji
+from matplotlib.axes import Axes
 
 
 _old_axes_init = Axes.__init__
@@ -78,93 +76,28 @@ sipm_channels = ([4,5,6,7,8,9] + \
 ## Plotting Functions ##
 
 ## Function for Baseline ##
-## 
-def baseline_graf(bsln_arr, MODULES, mod, output):
-    
-    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    if MODULES==1:
-        fig, axs = plt.subplots(1, 2, figsize=(4, 2))
-        for j in range(2):
-            color = 'limegreen' if bsln_arr[i * 2 + j] == 48 else 'orangered'
-            axs[j].add_patch(plt.Rectangle((0, 0), 1, 1, color=color))
-            axs[j].set_xticks([])
-            axs[j].set_yticks([])
-            axs[j].annotate('{}'.format(current_time), xy=(0.5, 0.5), xycoords='axes fraction', ha='center', fontsize=8)
-            text = emoji.emojize(':smile:',language='alias') if bsln_arr[i * 2 + j] == 48 else emoji.emojize(':angry_face:',language='alias')
-            axs[i, j].annotate('{}'.format(text), xy=(0.5, 0.3), xycoords='axes fraction', ha='center', fontsize=60)
-
-        for iax in axs.reshape(-1):
-            iax.xaxis.set_major_locator(MultipleLocator(16))
-            iax.xaxis.set_minor_locator(FixedLocator([4,10,20,26,36,42,52,58]))
-            iax.grid(axis = 'x',which="both")
-
-        row_headers=[f"Mod {mod}"]
-        col_headers=["ACL","LCM"]
-        font_kwargs = dict(fontfamily="monospace", fontweight="bold", fontsize="large")
-        add_headers(fig, col_headers=col_headers, row_headers=row_headers, **font_kwargs)
-
-        axs[0].set_xlabel("LRS Baseline")
-        axs[1].set_xlabel("LRS Baseline")
-        plt.savefig(output)
-        plt.close()
-        
-    else:
-        fig, axs = plt.subplots(4, 2, figsize=(4, 8))
-        for i in range(4):
-            for j in range(2):
-                color = 'limegreen' if bsln_arr[i * 2 + j] == 48 else 'orangered'
-                # Plot rectangle
-                axs[i, j].add_patch(plt.Rectangle((0, 0), 1, 1, color=color))
-                axs[i, j].set_xticks([])
-                axs[i, j].set_yticks([])
-                axs[i, j].annotate('{}'.format(current_time), xy=(0.5, 0.05), xycoords='axes fraction', ha='center', fontsize=8)
-                text = emoji.emojize(':smile:',language='alias') if bsln_arr[i * 2 + j] == 48 else emoji.emojize(':angry_face:',language='alias')
-                axs[i, j].annotate('{}'.format(text), xy=(0.5, 0.3), xycoords='axes fraction', ha='center', fontsize=60)
-
-            for iax in axs.reshape(-1):
-                iax.xaxis.set_major_locator(MultipleLocator(16))
-                iax.xaxis.set_minor_locator(FixedLocator([4,10,20,26,36,42,52,58]))
-                iax.grid(axis = 'x',which="both")
-                #iax.set_ylim(-1000,sat+1000)
-
-            row_headers=["Mod-0", "Mod-1", "Mod-2", "Mod-3"]
-            col_headers=["ACL","LCM"]
-            font_kwargs = dict(fontfamily="monospace", fontweight="bold", fontsize="large")
-            add_headers(fig, col_headers=col_headers, row_headers=row_headers, **font_kwargs)
-
-            axs[3,0].set_xlabel("LRS Baseline")
-            axs[3,1].set_xlabel("LRS Baseline")
-        plt.savefig(output)
-        plt.close()
 ##
-##
-def bsline_pFile(wvfm_all, mod, output1, output2, MODULES):
+def bsline_pFile(wvfm_all, mod, output, MODULES):
     
     max_amp_pchan_acl = []
     max_amp_pchan_lcm = []
     
-    baseline_list = []
-    
     if MODULES==1:
         
-        max_amp_pchan_acl.append(wvfm_all[:,0,:,:50].mean(axis=-1).mean(axis=0))
-        max_amp_pchan_lcm.append(wvfm_all[:,1,:,:50].mean(axis=-1).mean(axis=0))
+        max_amp_pchan_acl.append(wvfm_all[:,0,:,:50].mean(axis=-1).std(axis=0))
+        max_amp_pchan_lcm.append(wvfm_all[:,1,:,:50].mean(axis=-1).std(axis=0))
 
         #fig, ax = plt.subplots(1,2,figsize=(8, 2))
         fig, ax = plt.subplots(1,2,figsize=(16, 4))
         ax[0].plot(max_amp_pchan_acl[0],marker=".",markerfacecolor='black',markeredgecolor='None',linestyle='None')
         ax[1].plot(max_amp_pchan_lcm[0],marker=".",markerfacecolor='black',markeredgecolor='None',linestyle='None')
         ax[0].set_ylabel("Waveform Baseline [ADC]")
-        
-        baseline_list.append(max_amp_pchan_acl[0][sipm_channels])
-        baseline_list.append(max_amp_pchan_lcm[1][sipm_channels])
     
         for iax in ax.reshape(-1):
-            iax.xaxis.set_major_locator(MultipleLocator(63))
-            iax.xaxis.set_minor_locator(FixedLocator([3.5,9.5,15.5,19.5,25.5,31.5,35.5,41.5,47.5,51.5,57.5]))
+            iax.xaxis.set_major_locator(MultipleLocator(16))
+            iax.xaxis.set_minor_locator(FixedLocator([4,10,20,26,36,42,52,58]))
             iax.grid(axis = 'x',which="both")
-            #iax.set_ylim(-1000,sat+1000)
+            iax.set_ylim(-1000,sat+1000)
 
         row_headers=[f"Mod {mod}"]
         col_headers=["ACL","LCM"]
@@ -175,30 +108,27 @@ def bsline_pFile(wvfm_all, mod, output1, output2, MODULES):
         ax[1].set_xlabel("LCM") 
         txt = ' '
         plt.text(0.05,0.95,txt, transform=fig.transFigure, size=12)
-        output1.savefig()
+        output.savefig()
         plt.close()
         
         
     else: 
 
         for mod in range(4):
-            max_amp_pchan_acl.append(wvfm_all[:,mod*2,:,:50].mean(axis=-1).mean(axis=0))
-            max_amp_pchan_lcm.append(wvfm_all[:,mod*2+1,:,:50].mean(axis=-1).mean(axis=0))
+            max_amp_pchan_acl.append(wvfm_all[:,mod*2,:,:50].mean(axis=-1).std(axis=0))
+            max_amp_pchan_lcm.append(wvfm_all[:,mod*2+1,:,:50].mean(axis=-1).std(axis=0))
 
         fig, ax = plt.subplots(4,2,figsize=(16,16))
         for mod in range(4):
             ax[mod,0].plot(max_amp_pchan_acl[mod],marker=".",markerfacecolor='black',markeredgecolor='None',linestyle='None')
             ax[mod,1].plot(max_amp_pchan_lcm[mod],marker=".",markerfacecolor='black',markeredgecolor='None',linestyle='None')
             ax[mod,0].set_ylabel("Baseline")
-            
-            baseline_list.append(max_amp_pchan_acl[mod][sipm_channels])
-            baseline_list.append(max_amp_pchan_lcm[mod][sipm_channels])
     
         for iax in ax.reshape(-1):
-            iax.xaxis.set_major_locator(MultipleLocator(63))
-            iax.xaxis.set_minor_locator(FixedLocator([3.5,9.5,15.5,19.5,25.5,31.5,35.5,41.5,47.5,51.5,57.5]))
+            iax.xaxis.set_major_locator(MultipleLocator(16))
+            iax.xaxis.set_minor_locator(FixedLocator([4,10,20,26,36,42,52,58]))
             iax.grid(axis = 'x',which="both")
-            #iax.set_ylim(-1000,sat+1000)
+            iax.set_ylim(-1000,sat+1000)
 
         row_headers=["Mod-0", "Mod-1", "Mod-2", "Mod-3"]
         col_headers=["ACL","LCM"]
@@ -209,188 +139,15 @@ def bsline_pFile(wvfm_all, mod, output1, output2, MODULES):
         ax[3,1].set_xlabel("LCM")
         txt = ' .'
         plt.text(0.05,0.95,txt, transform=fig.transFigure, size=12)
-        output1.savefig()
-        plt.close()
-        
-    baseline_array = np.array(baseline_list)
-    baseline_mask = (baseline_array > -31000) & (baseline_array < -25000)
-    baseline_test = np.sum(baseline_array*(baseline_mask==0)+baseline_mask, axis=1, dtype=int)
-    baseline_graf(baseline_test, MODULES, mod, output2)
-##
-##
-def bsline_drift(wvfm_all, mod, output, MODULES):
-    
-    max_amp_pchan_acl = []
-    max_amp_pchan_lcm = []
-    
-    if MODULES==1:
-        
-        max_amp_pchan_acl.append(wvfm_all[:,0,:,:50].mean(axis=-1))
-        max_amp_pchan_lcm.append(wvfm_all[:,1,:,:50].mean(axis=-1))
-
-        fig, ax = plt.subplots(1,2,figsize=(8,2))
-        ax[0].plot(max_amp_pchan_acl[0],marker=".",markerfacecolor='black',markeredgecolor='None',linestyle='None')
-        ax[1].plot(max_amp_pchan_lcm[1],marker=".",markerfacecolor='black',markeredgecolor='None',linestyle='None')
-        ax[0].set_ylabel("Baseline")
-    
-        for iax in ax.reshape(-1):
-            iax.xaxis.set_major_locator(MultipleLocator(47))
-            iax.xaxis.set_minor_locator(FixedLocator([3.5,9.5,15.5,19.5,25.5,31.5,35.5,41.5,47.5,51.5,57.5]))
-            iax.grid(axis = 'x',which="both")
-
-        row_headers=[f"Mod {mod}"]
-        col_headers=["ACL","LCM"]
-        font_kwargs = dict(fontfamily="monospace", fontweight="bold", fontsize="large")
-        add_headers(fig, col_headers=col_headers, row_headers=row_headers, **font_kwargs)
-
-        ax[0].set_xlabel("ACL")
-        ax[1].set_xlabel("LCM") 
         output.savefig()
         plt.close()
-        
-        
-    else: 
-
-        for mod in range(4):
-            max_amp_pchan_acl.append(wvfm_all[:,mod*2,sipm_channels,:50].mean(axis=-1))
-            max_amp_pchan_lcm.append(wvfm_all[:,mod*2+1,sipm_channels,:50].mean(axis=-1))
-            
-            cumulative_sum_acl = np.cumsum(np.array(max_amp_pchan_acl), axis=1)
-            cumulative_sum_lcm = np.cumsum(np.array(max_amp_pchan_lcm), axis=1)
-            num_elements = np.arange(1,np.array(max_amp_pchan_acl).shape[1] + 1)
-            cumulative_average_acl = cumulative_sum_acl / num_elements.reshape(-1, 1)
-            cumulative_average_lcm = cumulative_sum_lcm / num_elements.reshape(-1, 1)
-
-        fig, ax = plt.subplots(4,2,figsize=(8,8))
-        for mod in range(4):
-            acl = ax[mod,0].pcolormesh(cumulative_average_acl[mod], vmin=-3e4, vmax=3e4, cmap='viridis')
-            lcm = ax[mod,1].pcolormesh(cumulative_average_lcm[mod], vmin=-3e4, vmax=3e4, cmap='viridis')
-            ax[mod,0].set_ylabel("Event")
-            num_bins_y, num_bins_x = cumulative_average_acl[mod].shape
-    
-        for iax in ax.reshape(-1):
-            iax.xaxis.set_major_locator(MultipleLocator(6))
-            iax.grid(axis = 'x',which="both")
-
-        row_headers=["Mod-0", "Mod-1", "Mod-2", "Mod-3"]
-        col_headers=["ACL","LCM"]
-        font_kwargs = dict(fontfamily="monospace", fontweight="bold", fontsize="large")
-        add_headers(fig, col_headers=col_headers, row_headers=row_headers, **font_kwargs)
-
-        ax[3,0].set_xlabel("Active Channel")
-        ax[3,1].set_xlabel("Active Channel")
-        cbar_ax = fig.add_axes([0.95, 0.11, 0.05, 0.77])
-        cbar = fig.colorbar(lcm, cax=cbar_ax, label=r'Charge [$10^3$] e')
-        cbar.set_label(r'Baseline Value', size=12)
-        cbar_ax.tick_params(labelsize=12)
-        output.savefig()
-        plt.close()
-##
-##
-def trigger_timing(wvfm_all, output, skip_int):
-    
-    adc_list = np.arange(np.shape(wvfm_all)[1])
-    
-    for adc in adc_list:
-
-        transposed_wvfms = np.transpose(wvfm_all, (1, 2, 0, 3))[adc,:,::skip_int,:]
-    
-        fig, ax = plt.subplots(4, 2, figsize=(11.5, 7.5), sharex=True, layout='constrained')
-        for summ in range(8):
-            start = summ*6
-            end = start+6
-            flattened_wvfms = np.concatenate(transposed_wvfms[start:end, :, :], axis=0)
-        
-            loop_len = np.shape(flattened_wvfms)[0]
-            for i in range(loop_len):
-                ax[summ//2, summ%2].plot(np.linspace(0,1000,1000), flattened_wvfms[i,:], linewidth=0.8)
-            ax[summ//2, summ%2].set_title('ADC '+str(adc)+': Channels ['+str(start)+':'+str(end-1)+']')
-            ax[summ//2, summ%2].axhline(sat, color='red', linestyle='--', label='ADC Saturation')
-            ax[summ//2, summ%2].grid(True)
-            ax[summ//2, 0].set_ylabel('ADC Value')
-            ax[3, summ%2].set_xlabel('Sample [0.016 μs]')
-        plt.legend(loc='upper left', fontsize=12)
-        plt.grid(True)
-        rect = plt.Rectangle((0, 0), 1200, 800, fill=False, edgecolor='black', lw=2)
-
-        fig.patches.append(rect)
-        output.savefig()
-        plt.close()
-##
-##
-def adjacent_values(arr, color, label, marker, ypt):
-    listt = []
-    for i in range(len(arr) - 1):
-        if abs(arr[i] - arr[i+1]) > 1:
-            listt.append(arr[i])
-            listt.append(arr[i+1])
-            #print('list len:', len(listt))
-    try:
-        min_val = np.min(np.array(listt))
-        max_val = np.max(np.array(listt))
-        #print(min_val, max_val)
-        plt.scatter(min_val, ypt, color=color, marker=marker, label=str(label))
-        plt.scatter(max_val, ypt, color=color, marker=marker)
-    except:
-        #print('no peaks')
-        a=0
-##
-##
-def signal_region(wvfm_all, output, skip_int):
-    
-    adc_list = np.arange(np.shape(wvfm_all)[1])
-    
-    fig = plt.figure(figsize=(12,3))
-    labels = ['ACL 0','LCM 1','ACL 2','LCM 3','ACL 4','LCM 5','ACL 6','LCM 7']
-    colors = ['navy','maroon','blue','crimson','dodgerblue','tomato','lightblue','orange']
-    markers = ['3','4','3','4','3','4','3','4']
-    adder = [2,4,2,4,2,4,2,4]
-    
-    for adc in adc_list:
-        
-        transposed_wvfms = np.transpose(wvfm_all, (1, 2, 0, 3))[adc,:,::skip_int,:]
-        
-        for summ in range(8):
-            start = summ*6
-            end = start+6
-            flattened_wvfms = np.concatenate(transposed_wvfms[start:end, :, :], axis=0)
-            uber_flattened_wvfms = np.concatenate(flattened_wvfms, axis=0)
-            x_hist_portion = np.tile(np.arange(1000), np.shape(flattened_wvfms)[0])
-            
-            hist = np.histogram2d(x_hist_portion, uber_flattened_wvfms, bins=(1000,100))
-
-            non_noise = hist[0][:,3:]
-            matrix_mask = (non_noise > 2)
-            mask_sum = np.sum(matrix_mask, axis=1)
-            
-            window_size = 20
-            y_smooth = np.convolve(mask_sum/window_size, np.ones(window_size)/window_size, mode='valid')
-
-            adjacent_values(np.where(y_smooth*window_size == 0)[0], colors[adc], labels[adc], markers[adc], start+adder[adc])
-
-    plt.xlim(0,1000)
-    plt.ylim(0,48)
-    handles, labels = plt.gca().get_legend_handles_labels()
-
-    # Include every fourth label
-    every_fourth_labels = labels[::4]
-    every_fourth_handles = handles[::4]
-
-    # Plot legend with every fourth label
-    plt.legend(every_fourth_handles, every_fourth_labels, loc='upper center', fontsize=11)
-    plt.grid(True)
-    plt.xlabel('Sample [0.016 μs]', fontsize=14)
-    plt.ylabel('Active Channel', fontsize=14)
-    plt.title('(LRS Waveform) Beam Response Window', fontsize=16)
-    output.savefig()
-    plt.close()
 ##
 ## Functions for FFTs: ##
 ##
 def noise_datasets(no_ped_adc, THRESHOLD):
 
     adc_signal_indices=[]
-    for i in range(0,len(no_ped_adc),2):
+    for i in range(len(no_ped_adc)):
         if max(no_ped_adc[i])>THRESHOLD:
             adc_signal_indices.append(i)
         else:
@@ -403,6 +160,8 @@ def noise_datasets(no_ped_adc, THRESHOLD):
         if len(adc_normal_pretrig)>500:
             break
     adc_normal_pretrig = np.array(adc_normal_pretrig[0:500])
+
+    ns_wvfms = []
 
     # Calculate power spectra using FFT
     freqs = np.fft.fftfreq(PRE_NOISE, SAMPLE_RATE)
@@ -421,9 +180,6 @@ def noise_datasets(no_ped_adc, THRESHOLD):
     power = np.ndarray.flatten(np.array(psds))
     p_dbfs = 20 * np.log10(power/ref)
     
-    del power
-    del psds
-    
     return adc_signal_indices, frequencies, adc_normal_pretrig, p_dbfs
 ##
 ##
@@ -438,9 +194,6 @@ def power_hist_maxes(adc_dataset):
     for array in hist:
         maxes.append(np.where(array == max(array))[0][0])
     max_bins = [ycenters[i] for i in maxes]
-    
-    del adc_freq
-    del adc_pdbfs
 
     return xcenters, max_bins
 ##
@@ -448,12 +201,10 @@ def power_hist_maxes(adc_dataset):
 def power_spec_plots(adc0_dataset, adc0_max, adc1_dataset, adc1_max, CUTOFF, mod, output): 
     fig = plt.figure(figsize=(16,4))
     x = np.linspace(0,CUTOFF-1,CUTOFF)
-    if len(adc0_dataset[2]) > 0:
-        y0 = adc0_dataset[2][10]/BIT
-        plt.plot(x, y0, "-", color='green', label='ACL')
-    if len(adc1_dataset[2]) > 0:
-        y1 = adc1_dataset[2][10]/BIT
-        plt.plot(x, y1, "-", color='yellowgreen', label='LCM')
+    y0 = adc0_dataset[2][300]/BIT
+    y1 = adc1_dataset[2][300]/BIT
+    plt.plot(x, y0, "-", color='green', label='ACL')
+    plt.plot(x, y1, "-", color='yellowgreen', label='LCM')
     plt.title('Waveform Example : Module '+str(mod), fontsize=16)
     plt.xlabel(r'Time Sample [0.016 $\mu$s]', fontsize=12)
     plt.ylabel('SiPM Channel Output', fontsize=12)
@@ -466,19 +217,16 @@ def power_spec_plots(adc0_dataset, adc0_max, adc1_dataset, adc1_max, CUTOFF, mod
     adc0_pdbfs = adc0_dataset[3]
     adc1_freq = adc1_dataset[1]
     adc1_pdbfs = adc1_dataset[3]
-    
-    if len(adc0_pdbfs)>0:
-        hist1 = ax[0].hist2d(adc0_freq[adc0_pdbfs>-500], adc0_pdbfs[adc0_pdbfs>-500], bins=32, \
+    hist1 = ax[0].hist2d(adc0_freq[adc0_pdbfs>-500], adc0_pdbfs[adc0_pdbfs>-500], bins=32, \
                             norm=mpl.colors.LogNorm(), cmap='viridis')
-        fig.colorbar(hist1[3], ax=ax, location='bottom')
-        ax[0].plot(adc0_max[0],adc0_max[1],'o-k')
+    fig.colorbar(hist1[3], ax=ax, location='bottom')
+    ax[0].plot(adc0_max[0],adc0_max[1],'o-k')
     ax[0].set_title('ACL Noise Power Spectrum')
     ax[0].set_ylim(-110,230)
     ax[0].set_xlabel('Frequency [MHz]',fontsize=14)
-    if len(adc1_pdbfs>0):
-        hist2 = ax[1].hist2d(adc1_freq[adc1_pdbfs>-500], adc1_pdbfs[adc1_pdbfs>-500], bins=32, \
+    hist2 = ax[1].hist2d(adc1_freq[adc1_pdbfs>-500], adc1_pdbfs[adc1_pdbfs>-500], bins=32, \
                             norm=mpl.colors.LogNorm(), cmap='viridis')
-        ax[1].plot(adc1_max[0],adc1_max[1],'o-k')
+    ax[1].plot(adc1_max[0],adc1_max[1],'o-k')
     ax[1].set_title('LCM Noise Power Spectrum')
     ax[1].set_ylim(-110,230)
     ax[1].set_xlabel('Frequency [MHz]',fontsize=14)
@@ -574,7 +322,7 @@ def amp_by_tick(adc_matrix, start, tick_start, tick_end, title, mod, color, outp
     plt.close()
 ##
 ##   
-def flow2sim(waveforms, function, start_tick, end_tick, mod):
+def flow2sim(waveforms, function, start_tick, end_tick, mod=0):
     
     modules = np.int64(np.shape(waveforms)[1])
     
@@ -627,7 +375,7 @@ def maxAmp_pModpEv(wvfm_all, mod, output, MODULES):
     
         for iax in ax.reshape(-1):
             #iax.xaxis.set_major_locator(MultipleLocator(24))
-            iax.xaxis.set_major_locator(MultipleLocator(10))
+            iax.xaxis.set_minor_locator(MultipleLocator(10))
             iax.grid(axis = 'x',which="both")
             iax.set_yscale('log')
             iax.set_ylim(10,sat*10)
@@ -656,11 +404,11 @@ def maxAmp_pModpEv(wvfm_all, mod, output, MODULES):
         for mod in range(4):
             ax[mod,0].plot(max_amp_pmod_acl[mod],marker=".",markerfacecolor='black',markeredgecolor='None',linestyle='None')
             ax[mod,1].plot(max_amp_pmod_lcm[mod],marker=".",markerfacecolor='black',markeredgecolor='None',linestyle='None')
-            ax[mod,0].set_ylabel("Max Amp [ADC]",fontfamily="monospace")
+            ax[mod,0].set_ylabel("Max amp [ADC]",fontfamily="monospace")
     
         for iax in ax.reshape(-1):
             #iax.xaxis.set_major_locator(MultipleLocator(24))
-            iax.xaxis.set_major_locator(MultipleLocator(10))
+            iax.xaxis.set_minor_locator(MultipleLocator(10))
             iax.grid(axis = 'x',which="both")
             iax.set_yscale('log')
             iax.set_ylim(10,sat*10)
@@ -678,71 +426,10 @@ def maxAmp_pModpEv(wvfm_all, mod, output, MODULES):
         output.savefig()
         plt.close()
 ##
-def maxamp_graf(mxamp_arr, MODULES, mod, output):
-    
-    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    if MODULES==1:
-        fig, axs = plt.subplots(1, 2, figsize=(4, 2))
-        for j in range(2):
-            color = 'limegreen' if mxamp_arr[i * 2 + j] != 0 else 'orangered'
-            axs[j].add_patch(plt.Rectangle((0, 0), 1, 1, color=color))
-            axs[j].set_xticks([])
-            axs[j].set_yticks([])
-            axs[j].annotate('{}'.format(current_time), xy=(0.5, 0.5), xycoords='axes fraction', ha='center', fontsize=8)
-            text = emoji.emojize(':smile:',language='alias') if mxamp_arr[i * 2 + j] != 0 else emoji.emojize(':angry_face:',language='alias')
-            axs[i, j].annotate('{}'.format(text), xy=(0.5, 0.3), xycoords='axes fraction', ha='center', fontsize=60)
-
-        for iax in axs.reshape(-1):
-            iax.xaxis.set_major_locator(MultipleLocator(16))
-            iax.xaxis.set_minor_locator(FixedLocator([4,10,20,26,36,42,52,58]))
-            iax.grid(axis = 'x',which="both")
-
-        row_headers=[f"Mod {mod}"]
-        col_headers=["ACL","LCM"]
-        font_kwargs = dict(fontfamily="monospace", fontweight="bold", fontsize="large")
-        add_headers(fig, col_headers=col_headers, row_headers=row_headers, **font_kwargs)
-
-        axs[0].set_xlabel("LRS Dead Channels")
-        axs[1].set_xlabel("LRS Dead Channels")
-        plt.savefig(output)
-        plt.close()
-    else:
-    # Loop through each subplot
-        fig, axs = plt.subplots(4, 2, figsize=(4, 8))
-        for i in range(4):
-            for j in range(2):
-                color = 'limegreen' if mxamp_arr[i * 2 + j] != 0 else 'orangered'
-                # Plot rectangle
-                axs[i, j].add_patch(plt.Rectangle((0, 0), 1, 1, color=color))
-                axs[i, j].set_xticks([])
-                axs[i, j].set_yticks([])
-                axs[i, j].annotate('{}'.format(current_time), xy=(0.5, 0.05), xycoords='axes fraction', ha='center', fontsize=8)
-                text = emoji.emojize(':smile:',language='alias') if mxamp_arr[i * 2 + j] != 0 else emoji.emojize(':angry_face:',language='alias')
-                axs[i, j].annotate('{}'.format(text), xy=(0.5, 0.3), xycoords='axes fraction', ha='center', fontsize=60)
-
-            for iax in axs.reshape(-1):
-                iax.xaxis.set_major_locator(MultipleLocator(16))
-                iax.xaxis.set_minor_locator(FixedLocator([4,10,20,26,36,42,52,58]))
-                iax.grid(axis = 'x',which="both")
-                #iax.set_ylim(-1000,sat+1000)
-
-            row_headers=["Mod-0", "Mod-1", "Mod-2", "Mod-3"]
-            col_headers=["ACL","LCM"]
-            font_kwargs = dict(fontfamily="monospace", fontweight="bold", fontsize="large")
-            add_headers(fig, col_headers=col_headers, row_headers=row_headers, **font_kwargs)
-
-            axs[3,0].set_xlabel("LRS Dead Channels")
-            axs[3,1].set_xlabel("LRS Dead Channels")
-        plt.savefig(output)
-        plt.close()
-##
-def maxAmp_pChanpFile(wvfm_all, mod, output1, output2, MODULES):
+def maxAmp_pChanpFile(wvfm_all, mod, output, MODULES):
     
     max_amp_pchan_acl = []
     max_amp_pchan_lcm = []
-    
-    deadchan_list = []
     
     if MODULES==1:
         
@@ -752,14 +439,11 @@ def maxAmp_pChanpFile(wvfm_all, mod, output1, output2, MODULES):
         fig, ax = plt.subplots(1,2,figsize=(16,4))
         ax[0].plot(max_amp_pchan_acl[0],marker=".",markerfacecolor='black',markeredgecolor='None',linestyle='None')
         ax[1].plot(max_amp_pchan_lcm[0],marker=".",markerfacecolor='black',markeredgecolor='None',linestyle='None')
-        ax[0].set_ylabel("Max Amp [ADC]")
-        
-        deadchan_list.append(max_amp_pchan_acl[0][sipm_channels])
-        deadchan_list.append(max_amp_pchan_lcm[1][sipm_channels])
+        ax[0].set_ylabel("Max amp [ADC]")
     
         for iax in ax.reshape(-1):
-            iax.xaxis.set_major_locator(MultipleLocator(63))
-            iax.xaxis.set_minor_locator(FixedLocator([3.5,9.5,15.5,19.5,25.5,31.5,35.5,41.5,47.5,51.5,57.5]))
+            #iax.xaxis.set_major_locator(MultipleLocator(24))
+            iax.xaxis.set_minor_locator(MultipleLocator(10))
             iax.grid(axis = 'x',which="both")
             iax.set_yscale('log')
             iax.set_ylim(10,sat*10)
@@ -774,7 +458,7 @@ def maxAmp_pChanpFile(wvfm_all, mod, output1, output2, MODULES):
         ax[1].set_xlabel("Channel",fontfamily="monospace")    
         txt = ' '
         plt.text(0.05,0.95,txt, transform=fig.transFigure, size=12)
-        output1.savefig()
+        output.savefig()
         plt.close()
         
         
@@ -788,14 +472,11 @@ def maxAmp_pChanpFile(wvfm_all, mod, output1, output2, MODULES):
         for mod in range(4):
             ax[mod,0].plot(max_amp_pchan_acl[mod],marker=".",markerfacecolor='black',markeredgecolor='None',linestyle='None')
             ax[mod,1].plot(max_amp_pchan_lcm[mod],marker=".",markerfacecolor='black',markeredgecolor='None',linestyle='None')
-            ax[mod,0].set_ylabel("Max Amp [ADC]")
-            
-            deadchan_list.append(max_amp_pchan_acl[mod][sipm_channels])
-            deadchan_list.append(max_amp_pchan_lcm[mod][sipm_channels])
+            ax[mod,0].set_ylabel("Max amp [ADC]")
     
         for iax in ax.reshape(-1):
-            iax.xaxis.set_major_locator(MultipleLocator(63))
-            iax.xaxis.set_minor_locator(FixedLocator([3.5,9.5,15.5,19.5,25.5,31.5,35.5,41.5,47.5,51.5,57.5]))
+            #iax.xaxis.set_major_locator(MultipleLocator(24))
+            iax.xaxis.set_minor_locator(MultipleLocator(10))
             iax.grid(axis = 'x',which="both")
             iax.set_yscale('log')
             iax.set_ylim(10,sat*10)
@@ -810,13 +491,8 @@ def maxAmp_pChanpFile(wvfm_all, mod, output1, output2, MODULES):
         ax[3,1].set_xlabel("Channel",fontfamily="monospace")
         txt = ' '
         plt.text(0.05,0.95,txt, transform=fig.transFigure, size=12)
-        output1.savefig()
+        output.savefig()
         plt.close()
-        
-    deadchan_array = np.array(deadchan_list)
-    deadchan_mask = (deadchan_array != 0)
-    deadchan_test = np.prod(deadchan_mask, axis=1)
-    maxamp_graf(deadchan_test, MODULES, mod, output2)
 ##
 ##
 def hist_maxAmp(inpuT, tick_start, tick_end, mod):
@@ -862,7 +538,7 @@ def max_amp(wvfm_matrix, tick_start, tick_end, mod, output, MODULES):
         ax.set_title('Single Module: Maximum Amplitude by Channel', fontsize=16)
         
     else: 
-        notflat_max = flow2sim(wvfm_matrix, hist_maxAmp, tick_start, tick_end, mod)
+        notflat_max = flow2sim(wvfm_matrix, hist_maxAmp, tick_start, tick_end)
         hist_shape = np.int64(np.shape(notflat_max)[-1])
         flat_max = np.concatenate(notflat_max, axis=0)
         flat_channel = np.arange(0,384,1)
@@ -955,7 +631,7 @@ def avg_amp(wvfm_matrix, tick_start, tick_end, mod, output, MODULES):
         ax.set_title('Single Module: Average Amplitude by Channel', fontsize=16)
 
     else: 
-        notflat_avg = flow2sim(wvfm_matrix, hist_avgAmp, tick_start, tick_end, mod)
+        notflat_avg = flow2sim(wvfm_matrix, hist_avgAmp, tick_start, tick_end)
         hist_shape = np.int64(np.shape(notflat_avg)[-1])
         flat_avg = np.concatenate(notflat_avg, axis=0)
         flat_channel = np.arange(0,384,1)
@@ -1041,15 +717,10 @@ def amp_ratio(wvfm_matrix, tick_start, tick_end, mod, output, MODULES):
         x_range = (0, 96)
         y_range = (0, np.max(flat_ratio)*1.1)
         hist1 = ax.hist2d(flat_channels, flat_ratio, bins=(96,100), range=[x_range, y_range], norm=mpl.colors.LogNorm(), cmap='viridis')
-        zero_y_bins = np.where(hist1[0][:,1:].sum(axis=-1) == 0)[0]
-        for i in range(len(zero_y_bins)):
-            ax.add_patch(plt.Rectangle((zero_y_bins[i], 0), 
-                         zero_y_bins[i]+1 - zero_y_bins[i], 
-                         y_range[1] - y_range[0], edgecolor='red', facecolor='none', alpha=0.7, lw=1))
         ax.set_title('Single Module: Ratios of the Average Noise Amplitude [800:1000]/[0:200]', fontsize=16)
         
     else: 
-        notflat_ratio = flow2sim(wvfm_matrix, hist_ampRatio, tick_start, tick_end, mod)
+        notflat_ratio = flow2sim(wvfm_matrix, hist_ampRatio, tick_start, tick_end)
         hist_shape = np.int64(np.shape(notflat_ratio)[-1])
         flat_ratio = np.concatenate(notflat_ratio, axis=0)
         flat_channel = np.arange(0,384,1)
@@ -1078,15 +749,8 @@ def amp_ratio(wvfm_matrix, tick_start, tick_end, mod, output, MODULES):
         y_range = (0, 20)
         
         hist1 = ax.hist2d(flat_channels, flat_ratio, bins=(384,200), range=[x_range, y_range], norm=mpl.colors.LogNorm(vmax=1e2), cmap='viridis')
-        zero_y_bins = np.where(hist1[0][:,1:].sum(axis=-1) == 0)[0]
-        for i in range(len(zero_y_bins)):
-            ax.add_patch(plt.Rectangle((zero_y_bins[i], 0), 
-                         zero_y_bins[i]+1 - zero_y_bins[i], 
-                         y_range[1] - y_range[0], edgecolor='red', facecolor='none', alpha=0.7, lw=1))
         ax.set_title('Full Detector: Ratios of the Average Noise Amplitude [800:1000]/[0:200]', fontsize=16)
 
-    txt = 'Zero-Indexed Minimal Response Channels:'+str(zero_y_bins)
-    plt.text(0.05,0.95,txt, transform=fig.transFigure, size=12)
     fig.colorbar(hist1[3], ax=ax, location='bottom')
     # Customize the plot
     ax.set_xlabel('Channel ID', fontsize=14)
@@ -1147,7 +811,7 @@ def dark_count(wvfm_matrix, tick_start, tick_end, mod, output, MODULES):
         #                 alpha=0.7, lw=1))        
         ax.set_title('Single Module: Dark Count Rate Per Channel', fontsize=16)
     else: 
-        notflat_ratio = flow2sim(wvfm_matrix, hist_darkR8, tick_start, tick_end, mod)
+        notflat_ratio = flow2sim(wvfm_matrix, hist_darkR8, tick_start, tick_end)
         hist_shape = np.int64(np.shape(notflat_ratio)[-1])
         flat_ratio = np.concatenate(notflat_ratio, axis=0)
         flat_channel = np.arange(0,384,1)
@@ -1199,177 +863,86 @@ def dark_count(wvfm_matrix, tick_start, tick_end, mod, output, MODULES):
 ##
 ## End Plotting Functions ##
 
-def main(input_file, output_file_1, output_file_2, output_file_3):
+def main(input_file, output_file):
 
     ## open file ##
     file = h5py.File(input_file, 'r')
 
     ## define the light waveform matrix ##
     light_wvfm_start = file['light/wvfm/data']['samples']
-    ## mask out inactive channels and remove pedestals##
-    light_wvfms_ped = light_wvfm_start[:,:,sipm_channels,:]
-    del light_wvfm_start
-    light_wvfms = light_wvfms_ped.astype(float) - light_wvfms_ped[:,:,:50].mean(axis=-1, keepdims=True)
+    ## mask out inactive channels ##
+    light_wvfms = light_wvfm_start[:,:,sipm_channels,:]
     ## define the number of ADCs in data ##
     MODULES = int(np.shape(light_wvfms)[1]/2)
     ## Livio's Plots: ##
     wvfm = file["light/wvfm/data"]
-    wvfm_alL = np.zeros((wvfm.shape[0],wvfm['samples'].shape[1],wvfm['samples'].shape[2],wvfm['samples'].shape[3]))
+    wvfm_all = np.zeros((wvfm.shape[0],wvfm['samples'].shape[1],wvfm['samples'].shape[2],wvfm['samples'].shape[3]))
     for i in range(wvfm.shape[0]):
-        wvfm_alL[i,:,:,:] = wvfm[i][0]
-    wvfm_all = wvfm_alL.astype(float) - wvfm_alL[:,:,:,:50].mean(axis=-1, keepdims=True)
+        wvfm_all[i,:,:,:] = wvfm[i][0]
 
-
-    with PdfPages(output_file_1) as output1:
-        output2 = output_file_2
-        output3 = output_file_3
+    with PdfPages(output_file) as output:
         
-        # First Plots: Check baseline average per channel in one file:
-        
-        try:
-            bsline_pFile(wvfm_alL, MOD, output1, output2, MODULES)
-            print('1/12')
-        except: 
-            txt = 'Error: Baseline Plot Averaged Over File' 
-            print(txt)
-            #plt.text(0.05,0.95, txt, transform=fig.transFigure, size=16)
-            
-        # Check if the Baseline Drifts across the file:
-        try:
-            bsline_drift(wvfm_alL, MOD, output1, MODULES)
-            print('2/12')
-        except:
-            txt = 'Error: Baseline Drift Plot Over File' 
-            print(txt)
-            #plt.text(0.05,0.95, txt, transform=fig.transFigure, size=16)
-        
-        # Checking trigger lineup:
-        try:
-            signal_region(wvfm_all, output1, 10)
-            print('3/12')
-        except: 
-            txt = 'Error: Average Beam Alignment Plot Over File' 
-            print(txt)
-            #plt.text(0.05,0.95, txt, transform=fig.transFigure, size=16)      
-        
-        # The third variable, skip int, determines the gap between plotted wvfms
-        try:
-            trigger_timing(wvfm_all, output1, 10)
-            print('4/12')
-        except: 
-            txt = 'Error: Beam Alignment Plot Over File' 
-            print(txt)
-            #plt.text(0.05,0.95,txt, transform=fig.transFigure, size=16) 
+        # First Plot: Check baseline average per channel in one file:
+        bsline_pFile(wvfm_all, MOD, output, MODULES)
     
         # Second Plot: Check the Max. Amplitude at each tick, averaged for all active channels on an ADC and events in file
-        try:
-            if MODULES==1:
-                LCM_wvfm = np.transpose(light_wvfms[:,1,:,:], (1,0,2))
-                ACL_wvfm = np.transpose(light_wvfms[:,0,:,:], (1,0,2))
-                amp_by_tick(ACL_wvfm, 0, 0, 1000, 'ACL', 0, 'Purples', output1)
-                amp_by_tick(LCM_wvfm, 0, 0, 1000, 'LCM', 0, 'Greens', output1)
+        if MODULES==1:
+            LCM_wvfm = np.transpose(light_wvfms[:,1,:,:], (1,0,2))
+            ACL_wvfm = np.transpose(light_wvfms[:,0,:,:], (1,0,2))
+            amp_by_tick(ACL_wvfm, 0, 0, 1000, 'ACL', 0, 'Purples', output)
+            amp_by_tick(LCM_wvfm, 0, 0, 1000, 'LCM', 0, 'Greens', output)
     
-            else: 
-                for i in range(MODULES):
-                    LCM_wvfm = np.transpose(light_wvfms[:,(i*2)+1,:,:], (1,0,2))
-                    ACL_wvfm = np.transpose(light_wvfms[:,(i*2),:,:], (1,0,2))
-                    amp_by_tick(ACL_wvfm, 0, 0, 1000, 'ACL', i, 'Purples', output1)
-                    amp_by_tick(LCM_wvfm, 0, 0, 1000, 'LCM', i, 'Greens', output1)
-            print('5/12')
-        except: 
-            txt = 'Error: Average Max. Amplitude Per Tick Plot' 
-            print(txt)
-            #plt.text(0.05,0.95,txt, transform=fig.transFigure, size=16)
+        else: 
+            for i in range(MODULES):
+                LCM_wvfm = np.transpose(light_wvfms[:,(i*2)+1,:,:], (1,0,2))
+                ACL_wvfm = np.transpose(light_wvfms[:,(i*2),:,:], (1,0,2))
+                amp_by_tick(ACL_wvfm, 0, 0, 1000, 'ACL', i, 'Purples', output)
+                amp_by_tick(LCM_wvfm, 0, 0, 1000, 'LCM', i, 'Greens', output)
             
         # Third Plot: Check the Max. Amplitude at each event in a file, averaged for all active channels on an ADC and ticks in wvfm
-        try: 
-            maxAmp_pModpEv(wvfm_all, MOD, output1, MODULES)
-            print('6/12')
-        except: 
-            txt = 'Error: Max. Amplitude per Event Plot' 
-            print(txt)
-            #plt.text(0.05,0.95,txt, transform=fig.transFigure, size=16) 
+        maxAmp_pModpEv(wvfm_all, MOD, output, MODULES)
     
         # Fourth Plot: Check the Max. Amplitude at each channel, averaged across all events in a file and ticks in wvfm
-        try: 
-            maxAmp_pChanpFile(wvfm_all, MOD, output1, output3, MODULES)
-            print('7/12')
-        except: 
-            txt = 'Error: Max. Amplitude per Channel Plot' 
-            print(txt)
-            #plt.text(0.05,0.95,txt, transform=fig.transFigure, size=16)
-        
+        maxAmp_pChanpFile(wvfm_all, MOD, output, MODULES)
+    
         # Fifth Plot: Check the Max. Amplitude at each channel for each event in the file (histogram):
-        try: 
-            max_amp(light_wvfms, 0, 1000, MOD, output1, MODULES)
-            print('8/12')
-        except: 
-            txt = 'Error: Another Max. Amplitude Plot' 
-            print(txt)
-            #plt.text(0.05,0.95,txt, transform=fig.transFigure, size=16) 
+        max_amp(light_wvfms, 0, 1000, MOD, output, MODULES)
     
         # Sixth Plot: Check the Mean. Amplitude across all ticks for each channel, for each event in file:
-        try:
-            avg_amp(light_wvfms, 0, 1000, MOD, output1, MODULES)
-            print('9/12')
-        except: 
-            txt = 'Error: Mean Amplitude Across All Ticks Plot' 
-            print(txt)
-            #plt.text(0.05,0.95,txt, transform=fig.transFigure, size=16) 
+        avg_amp(light_wvfms, 0, 1000, MOD, output, MODULES)
     
         # Seventh Plot: Check the ratio of mean amplitude for early vs late ticks, for each channel, for each event:
-        try:
-            amp_ratio(light_wvfms, 200, 800, MOD, output1, MODULES)
-            print('10/12')
-        except: 
-            txt = 'Error: Mean Amplitude Late vs. Early Ticks Plot' 
-            print(txt)
-            #plt.text(0.05,0.95,txt, transform=fig.transFigure, size=16) 
+        amp_ratio(light_wvfms, 200, 800, MOD, output, MODULES)
     
         # Eighth Plot: Check the dark count rate across a waveform for each channel, for each event:
-        try:
-            dark_count(light_wvfms, 0, 1000, MOD, output1, MODULES)
-            print('11/12')
-        except:
-            txt = 'Error: Dark Count Plot' 
-            print(txt)
-            #plt.text(0.05,0.95,txt, transform=fig.transFigure, size=16) 
-            
+        dark_count(light_wvfms, 0, 1000, MOD, output, MODULES)
+        
         # Ninth Plot: Check the FFTs for each ADC
-        try: 
-            short_l_wvfms = light_wvfms[::10,:,:,:]
-            length = np.shape(short_l_wvfms)[0]
-            if length > 500:
-                max_cap = 500
-            else: 
-                max_cap = length
+        length = np.shape(light_wvfm_start[:,:,sipm_channels,:])[0]
+        if length > 500:
+            max_cap = 500
+        else: 
+            max_cap = length
             
-            if MODULES==1:
-                ACL_dataset = noise_datasets(ak.flatten(short_l_wvfms[:max_cap,0,:,:], axis=1), THRESHOLD)
-                LCM_dataset = noise_datasets(ak.flatten(short_l_wvfms[:max_cap,1,:,:], axis=1), THRESHOLD)
+        if MODULES==1:
+            ACL_dataset = noise_datasets(ak.flatten(light_wvfms[:max_cap,0,:,:], axis=1), THRESHOLD)
+            LCM_dataset = noise_datasets(ak.flatten(light_wvfms[:max_cap,1,:,:], axis=1), THRESHOLD)
+            ACL_maxes = power_hist_maxes(ACL_dataset)
+            LCM_maxes = power_hist_maxes(LCM_dataset)
+    
+            power_spec_plots(ACL_dataset, ACL_maxes, LCM_dataset, LCM_maxes, PRE_NOISE, 0, output)
+        else: 
+            for i in range(MODULES):
+                ACL_dataset = noise_datasets(ak.flatten(-light_wvfms[:max_cap,(i*2),:,:], axis=1), THRESHOLD)
+                LCM_dataset = noise_datasets(ak.flatten(light_wvfms[:max_cap,(i*2)+1,:,:], axis=1), THRESHOLD)
                 ACL_maxes = power_hist_maxes(ACL_dataset)
                 LCM_maxes = power_hist_maxes(LCM_dataset)
-    
-                power_spec_plots(ACL_dataset, ACL_maxes, LCM_dataset, LCM_maxes, PRE_NOISE, 0, output1)
-            else: 
-                for i in range(MODULES):
-                    ACL_dataset = noise_datasets(ak.flatten(short_l_wvfms[:max_cap,(i*2),:,:], axis=1), THRESHOLD)
-                    LCM_dataset = noise_datasets(ak.flatten(short_l_wvfms[:max_cap,(i*2)+1,:,:], axis=1), THRESHOLD)
-                    ACL_maxes = power_hist_maxes(ACL_dataset)
-                    LCM_maxes = power_hist_maxes(LCM_dataset)
         
-                    power_spec_plots(ACL_dataset, ACL_maxes, LCM_dataset, LCM_maxes, PRE_NOISE, i, output1)
-            print('12/12')
-        except:
-            txt = 'Error: Noise FFT Plot' 
-            print(txt)
-            #plt.text(0.05,0.95,txt, transform=fig.transFigure, size=16) 
+                power_spec_plots(ACL_dataset, ACL_maxes, LCM_dataset, LCM_maxes, PRE_NOISE, i, output)
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--input_file', default=None, type=str,help='''string corresponding to the path of the flow_file output data file to be considered''')
-    parser.add_argument('--output_file_1', default=None, type=str, help='Main Output PDF file')
-    parser.add_argument('--output_file_2', default=None, type=str, help='Baseline Offset Output PNG file')
-    parser.add_argument('--output_file_3', default=None, type=str, help='Dead Channels Output PNG file')
+    parser.add_argument('--output_file', default=None, type=str, help='Output PDF file')
     args = parser.parse_args()
     main(**vars(args))

@@ -16,6 +16,8 @@ The installation will go into `_install`. After installing, edit `config/my_laun
 source admin/load.sh
 ```
 
+If your `my_launchpad.yaml` points to a new Mongo database, run `lpad reset` to initialize it.
+
 ## Monitoring the filesystem and loading the DB
 
 ``` bash

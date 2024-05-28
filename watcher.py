@@ -20,12 +20,15 @@ class EventHandler(FileSystemEventHandler):
 
 
 class Watcher:
-    def __init__(self, prog: Path, path: Path, exts: list[str],
-                 cond: Callable[[Path], bool]):
+    def __init__(self, prog: Path, paths: list[Path], exts: list[str],
+                 cond: Callable[[Path], bool],
+                 sleep_between_scans: int, min_file_age: int):
         self.prog = prog
-        self.path = path
+        self.paths = paths
         self.exts = exts
         self.cond = cond
+        self.sleep_between_scans = sleep_between_scans
+        self.min_file_age = min_file_age
 
         self.seen_files = set()
         self.lpad = LaunchPad.auto_load()
@@ -35,7 +38,7 @@ class Watcher:
         if ( (p in self.seen_files) or
              (not self.cond(p)) or
              self.find_firework(p) or
-             (time.time() - p.stat().st_mtime < 300) ):
+             (time.time() - p.stat().st_mtime < self.min_file_age) ):
             # print(f'NO: {p}')
             return None
 
@@ -53,9 +56,10 @@ class Watcher:
         return self.db['fireworks'].find_one(q)
 
     def snarf(self):
-        for ext in self.exts:
-            for p in self.path.rglob(f'*.{ext}'):
-                self.maybe_make_firework(p)
+        for path in self.paths:
+            for ext in self.exts:
+                for p in path.rglob(f'*.{ext}'):
+                    self.maybe_make_firework(p)
 
     def watch_inotify(self):
         handler = EventHandler(self)
@@ -72,7 +76,7 @@ class Watcher:
     def watch_dumb(self):
         while True:
             self.snarf()
-            time.sleep(300)
+            time.sleep(self.sleep_between_scans)
 
 
 
@@ -87,20 +91,35 @@ def is_raw_binary(p: Path):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('prog', type=Path)
-    ap.add_argument('path', type=Path)
+    ap.add_argument('--path', type=Path)
+    ap.add_argument('--path-file')
     ap.add_argument('--require-binary', action='store_true')
     ap.add_argument('--ext', help='File extension (if not h5 / hdf5)')
+    ap.add_argument('--base-dir', type=Path)
+    ap.add_argument('--sleep-between-scans', type=int, default=180,
+                    help='Seconds to sleep between filesystem scans')
+    ap.add_argument('--min-file-age', type=int, default=180,
+                    help='Minimum seconds since last update for file to be deemed "complete"')
     args = ap.parse_args()
 
-    exts = ['.h5', '.hdf5']
+    if args.path:
+        assert not args.path_file
+        paths = [args.path]
+    if args.path_file:
+        assert not args.path
+        paths = [args.base_dir / Path(l.strip())
+                 for l in open(args.path_file).readlines()]
+
+    exts = ['h5', 'hdf5']
     cond = is_hdf5
     if args.require_binary:
         cond = is_raw_binary
     elif args.ext:
         exts = [args.ext]
-        cond = lambda p: p.suffix.lower() == args.ext
+        cond = lambda p: p.suffix.lower() == f'.{args.ext}'
 
-    w = Watcher(args.prog.absolute(), args.path, cond, exts)
+    w = Watcher(args.prog.absolute(), paths, exts, cond,
+                args.sleep_between_scans, args.min_file_age)
     # w.snarf()
     # w.watch()
     w.watch_dumb()
