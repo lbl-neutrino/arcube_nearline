@@ -241,7 +241,7 @@ def main(input_file, output_file):
 
 
     cbar_ax = fig.add_subplot(fig_grid[0,8])
-    fig.colorbar(cm.ScalarMappable(norm=Normalize(vmin=0, vmax=50),\
+    fig.colorbar(cm.ScalarMappable(norm=Normalize(vmin=0, vmax=150),\
                                    cmap='viridis'), cax=cbar_ax,label='ADC Counts')
 
     cbar_ax2 = fig.add_subplot(fig_grid[1,8])
