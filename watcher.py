@@ -96,9 +96,9 @@ def main():
     ap.add_argument('--require-binary', action='store_true')
     ap.add_argument('--ext', help='File extension (if not h5 / hdf5)')
     ap.add_argument('--base-dir', type=Path)
-    ap.add_argument('--sleep-between-scans', type=int, default=180,
+    ap.add_argument('--sleep-between-scans', type=int, default=30,
                     help='Seconds to sleep between filesystem scans')
-    ap.add_argument('--min-file-age', type=int, default=180,
+    ap.add_argument('--min-file-age', type=int, default=30,
                     help='Minimum seconds since last update for file to be deemed "complete"')
     args = ap.parse_args()
 
