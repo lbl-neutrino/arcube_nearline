@@ -85,7 +85,7 @@ def is_hdf5(p: Path):
 
 
 def is_raw_binary(p: Path):
-    return is_hdf5(p) and p.name.startswith('binary')
+    return is_hdf5(p) and (p.name.find('binary-') != -1)
 
 
 def main():
