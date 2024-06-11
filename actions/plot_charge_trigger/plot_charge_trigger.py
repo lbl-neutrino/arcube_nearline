@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import h5py
 import argparse
 from datetime import datetime
