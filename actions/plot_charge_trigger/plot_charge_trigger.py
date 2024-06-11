@@ -49,7 +49,7 @@ def main(input_file, output_file):
 
     tpcs = range(1, 9)
     
-    trigger_tpc = 1
+    trigger_tpc = 4
     i_trigger_tpc = trigger_tpc - 1
     
     thresh_tpc = 5
