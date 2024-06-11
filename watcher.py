@@ -22,7 +22,8 @@ class EventHandler(FileSystemEventHandler):
 class Watcher:
     def __init__(self, prog: Path, paths: list[Path], exts: list[str],
                  cond: Callable[[Path], bool],
-                 sleep_between_scans: int, min_file_age: int, max_file_age: int | None):
+                 sleep_between_scans: int, min_file_age: int, max_file_age: int | None,
+                 priority: int):
         self.prog = prog
         self.paths = paths
         self.exts = exts
@@ -30,6 +31,7 @@ class Watcher:
         self.sleep_between_scans = sleep_between_scans
         self.min_file_age = min_file_age
         self.max_file_age = max_file_age
+        self.priority = priority
 
         self.seen_files = set()
         self.lpad = LaunchPad.auto_load()
@@ -46,7 +48,8 @@ class Watcher:
 
         script = f'{self.prog} {p}'
         task = ScriptTask.from_str(script)
-        fw = Firework(task, name=self.prog.name)
+        spec = {'_priority': self.priority}
+        fw = Firework(task, name=self.prog.name, spec=spec)
         # NOTE: add_wf updates fw.fw_id to match the DB's value
         self.lpad.add_wf(fw)
         self.seen_files.add(p)
@@ -104,6 +107,8 @@ def main():
                     help='Minimum seconds since last update for file to be deemed "complete"')
     ap.add_argument('--max-file-age', type=int, default=None,
                     help='Maximum seconds since last update for file to be deemed "fresh"')
+    ap.add_argument('--priority', type=int, default=0,
+                    help='Tasks with higher priorities run first')
     args = ap.parse_args()
 
     if args.path:
@@ -124,7 +129,7 @@ def main():
 
     w = Watcher(args.prog.absolute(), paths, exts, cond,
                 args.sleep_between_scans, args.min_file_age,
-                args.max_file_age)
+                args.max_file_age, args.priority)
     # w.snarf()
     # w.watch()
     w.watch_dumb()
