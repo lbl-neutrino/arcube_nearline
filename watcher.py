@@ -22,13 +22,14 @@ class EventHandler(FileSystemEventHandler):
 class Watcher:
     def __init__(self, prog: Path, paths: list[Path], exts: list[str],
                  cond: Callable[[Path], bool],
-                 sleep_between_scans: int, min_file_age: int):
+                 sleep_between_scans: int, min_file_age: int, max_file_age: int | None):
         self.prog = prog
         self.paths = paths
         self.exts = exts
         self.cond = cond
         self.sleep_between_scans = sleep_between_scans
         self.min_file_age = min_file_age
+        self.max_file_age = max_file_age
 
         self.seen_files = set()
         self.lpad = LaunchPad.auto_load()
@@ -38,7 +39,8 @@ class Watcher:
         if ( (p in self.seen_files) or
              (not self.cond(p)) or
              self.find_firework(p) or
-             (time.time() - p.stat().st_mtime < self.min_file_age) ):
+             (time.time() - p.stat().st_mtime < self.min_file_age) or
+             (self.max_file_age and (time.time() - p.stat().st_mtime > self.max_file_age))):
             # print(f'NO: {p}')
             return None
 
@@ -100,6 +102,8 @@ def main():
                     help='Seconds to sleep between filesystem scans')
     ap.add_argument('--min-file-age', type=int, default=30,
                     help='Minimum seconds since last update for file to be deemed "complete"')
+    ap.add_argument('--max-file-age', type=int, default=None,
+                    help='Maximum seconds since last update for file to be deemed "fresh"')
     args = ap.parse_args()
 
     if args.path:
@@ -119,7 +123,8 @@ def main():
         cond = lambda p: p.suffix.lower() == f'.{args.ext}'
 
     w = Watcher(args.prog.absolute(), paths, exts, cond,
-                args.sleep_between_scans, args.min_file_age)
+                args.sleep_between_scans, args.min_file_age,
+                args.max_file_age)
     # w.snarf()
     # w.watch()
     w.watch_dumb()
