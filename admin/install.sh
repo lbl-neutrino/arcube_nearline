@@ -57,7 +57,7 @@ cd ../../..
 pip install adc64format
 
 # For light DQM, etc.:
-pip install awkward emoji
+pip install awkward emoji pandas
 
 cd "$basedir"
 
