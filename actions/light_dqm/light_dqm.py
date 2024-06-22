@@ -86,12 +86,12 @@ def baseline_graf(bsln_arr, MODULES, mod, output):
     if MODULES==1:
         fig, axs = plt.subplots(1, 2, figsize=(4, 2))
         for j in range(2):
-            color = 'limegreen' if bsln_arr[i * 2 + j] == 48 else 'orangered'
+            color = 'limegreen' if bsln_arr[i * 2 + j] == 48 else 'deeppink'
             axs[j].add_patch(plt.Rectangle((0, 0), 1, 1, color=color))
             axs[j].set_xticks([])
             axs[j].set_yticks([])
             axs[j].annotate('{}'.format(current_time), xy=(0.5, 0.5), xycoords='axes fraction', ha='center', fontsize=8)
-            text = emoji.emojize(':smile:',language='alias') if bsln_arr[i * 2 + j] == 48 else emoji.emojize(':angry_face:',language='alias')
+            text = emoji.emojize(':smile:',language='alias') if bsln_arr[i * 2 + j] == 48 else emoji.emojize(':winking_face:',language='alias')
             axs[i, j].annotate('{}'.format(text), xy=(0.5, 0.3), xycoords='axes fraction', ha='center', fontsize=60)
 
         for iax in axs.reshape(-1):
@@ -113,13 +113,13 @@ def baseline_graf(bsln_arr, MODULES, mod, output):
         fig, axs = plt.subplots(4, 2, figsize=(4, 8))
         for i in range(4):
             for j in range(2):
-                color = 'limegreen' if bsln_arr[i * 2 + j] == 48 else 'orangered'
+                color = 'limegreen' if bsln_arr[i * 2 + j] == 48 else 'deeppink'
                 # Plot rectangle
                 axs[i, j].add_patch(plt.Rectangle((0, 0), 1, 1, color=color))
                 axs[i, j].set_xticks([])
                 axs[i, j].set_yticks([])
                 axs[i, j].annotate('{}'.format(current_time), xy=(0.5, 0.05), xycoords='axes fraction', ha='center', fontsize=8)
-                text = emoji.emojize(':smile:',language='alias') if bsln_arr[i * 2 + j] == 48 else emoji.emojize(':angry_face:',language='alias')
+                text = emoji.emojize(':smile:',language='alias') if bsln_arr[i * 2 + j] == 48 else emoji.emojize(':winking_face:',language='alias')
                 axs[i, j].annotate('{}'.format(text), xy=(0.5, 0.3), xycoords='axes fraction', ha='center', fontsize=60)
 
             for iax in axs.reshape(-1):
@@ -685,12 +685,12 @@ def maxamp_graf(mxamp_arr, MODULES, mod, output):
     if MODULES==1:
         fig, axs = plt.subplots(1, 2, figsize=(4, 2))
         for j in range(2):
-            color = 'limegreen' if mxamp_arr[i * 2 + j] != 0 else 'orangered'
+            color = 'limegreen' if mxamp_arr[i * 2 + j] != 0 else 'deeppink'
             axs[j].add_patch(plt.Rectangle((0, 0), 1, 1, color=color))
             axs[j].set_xticks([])
             axs[j].set_yticks([])
             axs[j].annotate('{}'.format(current_time), xy=(0.5, 0.5), xycoords='axes fraction', ha='center', fontsize=8)
-            text = emoji.emojize(':smile:',language='alias') if mxamp_arr[i * 2 + j] != 0 else emoji.emojize(':angry_face:',language='alias')
+            text = emoji.emojize(':smile:',language='alias') if mxamp_arr[i * 2 + j] != 0 else emoji.emojize(':winking_face:',language='alias')
             axs[i, j].annotate('{}'.format(text), xy=(0.5, 0.3), xycoords='axes fraction', ha='center', fontsize=60)
 
         for iax in axs.reshape(-1):
@@ -712,13 +712,13 @@ def maxamp_graf(mxamp_arr, MODULES, mod, output):
         fig, axs = plt.subplots(4, 2, figsize=(4, 8))
         for i in range(4):
             for j in range(2):
-                color = 'limegreen' if mxamp_arr[i * 2 + j] != 0 else 'orangered'
+                color = 'limegreen' if mxamp_arr[i * 2 + j] != 0 else 'deeppink'
                 # Plot rectangle
                 axs[i, j].add_patch(plt.Rectangle((0, 0), 1, 1, color=color))
                 axs[i, j].set_xticks([])
                 axs[i, j].set_yticks([])
                 axs[i, j].annotate('{}'.format(current_time), xy=(0.5, 0.05), xycoords='axes fraction', ha='center', fontsize=8)
-                text = emoji.emojize(':smile:',language='alias') if mxamp_arr[i * 2 + j] != 0 else emoji.emojize(':angry_face:',language='alias')
+                text = emoji.emojize(':smile:',language='alias') if mxamp_arr[i * 2 + j] != 0 else emoji.emojize(':winking_face:',language='alias')
                 axs[i, j].annotate('{}'.format(text), xy=(0.5, 0.3), xycoords='axes fraction', ha='center', fontsize=60)
 
             for iax in axs.reshape(-1):
@@ -1205,20 +1205,23 @@ def main(input_file, output_file_1, output_file_2, output_file_3):
     file = h5py.File(input_file, 'r')
 
     ## define the light waveform matrix ##
-    light_wvfm_start = file['light/wvfm/data']['samples']
+    wvfm = file["light/wvfm/data"][::10]#['samples']#[::10,:,:,:]
+    #del file
+    #light_wvfm_start = wvfm['samples']
     ## mask out inactive channels and remove pedestals##
-    light_wvfms_ped = light_wvfm_start[:,:,sipm_channels,:]
-    del light_wvfm_start
+    light_wvfms_ped = wvfm['samples'][:,:,sipm_channels,:]
+    #del light_wvfm_start
     light_wvfms = light_wvfms_ped.astype(float) - light_wvfms_ped[:,:,:50].mean(axis=-1, keepdims=True)
+    del light_wvfms_ped
     ## define the number of ADCs in data ##
     MODULES = int(np.shape(light_wvfms)[1]/2)
     ## Livio's Plots: ##
-    wvfm = file["light/wvfm/data"]
+    #wvfm = file["light/wvfm/data"]['samples']
     wvfm_alL = np.zeros((wvfm.shape[0],wvfm['samples'].shape[1],wvfm['samples'].shape[2],wvfm['samples'].shape[3]))
     for i in range(wvfm.shape[0]):
         wvfm_alL[i,:,:,:] = wvfm[i][0]
     wvfm_all = wvfm_alL.astype(float) - wvfm_alL[:,:,:,:50].mean(axis=-1, keepdims=True)
-
+    del wvfm
 
     with PdfPages(output_file_1) as output1:
         output2 = output_file_2
@@ -1245,7 +1248,7 @@ def main(input_file, output_file_1, output_file_2, output_file_3):
         
         # Checking trigger lineup:
         try:
-            signal_region(wvfm_all, output1, 10)
+            signal_region(wvfm_all, output1, 3)
             print('3/12')
         except: 
             txt = 'Error: Average Beam Alignment Plot Over File' 
@@ -1337,7 +1340,7 @@ def main(input_file, output_file_1, output_file_2, output_file_3):
             
         # Ninth Plot: Check the FFTs for each ADC
         try: 
-            short_l_wvfms = light_wvfms[::10,:,:,:]
+            short_l_wvfms = light_wvfms[::2,:,:,:]
             length = np.shape(short_l_wvfms)[0]
             if length > 500:
                 max_cap = 500
