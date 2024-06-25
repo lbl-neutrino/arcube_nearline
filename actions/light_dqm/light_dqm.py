@@ -83,27 +83,17 @@ sipm_channels = ([4,5,6,7,8,9] + \
 ## Function for Baseline ##
 ## 
 def emoji_thang(bsln_arr, input1, input2, module, typ):
-    print('aa')
-    print('shape of bsln_arr', np.shape(bsln_arr))
     length = 64
     expected = np.ones(length)
     inactive = input1
     special_value = 0
     expected[inactive] = special_value
-    print('bb')
     bbase = input2[f'{module * 2 + typ}']
     expected[bbase] = special_value
     expected = np.int64(expected)
     baseline = bsln_arr[module * 2 + typ]
-    print('cc')
-    print('baseline',baseline)
-    print('inactive',inactive)
-    print('special_value',special_value)
     baseline[inactive] = special_value
-    print('baseline 2', baseline)
-    print('ccc')
     baseline[bbase] = special_value
-    print('dd')
 
     if np.array_equal(baseline, expected) == True:
         if np.sum(baseline, dtype=int) == 48:
@@ -330,31 +320,23 @@ def bsline_drift(wvfm_all, mod, output, MODULES):
 def trigger_timing(light_wvfms, events, output):
     
     adc_list = np.arange(np.shape(light_wvfms)[1])
-    print('j')
     
     for adc in adc_list:
 
         transposed_wvfms = np.transpose(light_wvfms, (1, 2, 0, 3))[adc,:,:,:]
-        print('l')
     
         fig, ax = plt.subplots(4, 2, figsize=(11.5, 7.5), sharex=True, layout='constrained')
         for summ in range(8):
             start = summ*6
-            print('m')
             end = start+6
             flattened_wvfms = transposed_wvfms[start:end, :, :]
             sum_wvfm = np.clip(np.sum(flattened_wvfms, axis=0),None,sat)
 
-            print('n')
             chan = np.shape(flattened_wvfms)[0]
             for ev in events:
-                print('o')
                 #print(ev)
-                print(SAMPLES)
-                print('chan', chan)
                 ax[summ//2, summ%2].plot(np.linspace(0,SAMPLES,SAMPLES), sum_wvfm[ev, :], color='grey', linewidth=0.8, label='Sum')
                 for i in range(chan):
-                    print('p')
                     ax[summ//2, summ%2].plot(np.linspace(0,SAMPLES,SAMPLES), flattened_wvfms[i,ev,:], linewidth=0.8)
             ax[summ//2, summ%2].set_title('ADC '+str(adc)+': Channels ['+str(start)+':'+str(end-1)+']')
             ax[summ//2, summ%2].set_ylim(-100,33000)
@@ -362,17 +344,14 @@ def trigger_timing(light_wvfms, events, output):
             ax[summ//2, summ%2].set_ylim(0, 35000)
             ax[summ//2, 0].set_ylabel('ADC Value')
             ax[3, summ%2].set_xlabel('Sample [0.016 μs]')
-            print('q')
 
         plt.grid(True)
         rect = plt.Rectangle((0, 0), 1200, 800, fill=False, edgecolor='black', lw=2)
         handles, labels = plt.gca().get_legend_handles_labels()
         unique = dict(zip(labels, handles))
-        print('r')
 
         plt.legend(unique.values(), unique.keys())
         fig.patches.append(rect)
-        print('s')
         output.savefig()
         plt.close()
 
@@ -741,7 +720,6 @@ def maxAmp_pModpEv(wvfm_all, mod, output, MODULES):
 def maxamp_graf(mxamp_arr, MODULES, mod, output, input1, input2):
     
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print('f')
 
     if MODULES==1:
         fig, axs = plt.subplots(1, 2, figsize=(4, 2))
@@ -795,7 +773,6 @@ def maxamp_graf(mxamp_arr, MODULES, mod, output, input1, input2):
 
             axs[3,0].set_xlabel("LRS Dead Channels")
             axs[3,1].set_xlabel("LRS Dead Channels")
-        print('k')
         plt.savefig(output)
         plt.close()
 ##
@@ -878,7 +855,7 @@ def maxAmp_pChanpFile(wvfm_all, mod, output1, output2, MODULES, inputs):
     deadchan_array = np.array(deadchan_list)
     deadchan_mask = (deadchan_array > 100)
     deadchan_test = np.int64(deadchan_mask)
-    maxamp_graf(deadchan_test, MODULES, mod, output2, inputs['inactive_channels'], inputs['dead_channels'])
+    maxamp_graf(deadchan_test, MODULES, mod, output2, inputs['inactive_channels'], inputs['weird_channels'])
 ##
 ##
 def hist_maxAmp(inpuT, tick_start, tick_end, mod):
