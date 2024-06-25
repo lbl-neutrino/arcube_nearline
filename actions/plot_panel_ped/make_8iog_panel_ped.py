@@ -13,6 +13,7 @@ from matplotlib.patches import Rectangle
 from matplotlib import cm
 from matplotlib.colors import Normalize
 import argparse
+from collections import defaultdict
 
 
 centerline_chip_id=list(range(20,120,10))
@@ -21,82 +22,113 @@ horizontal_chip_id=list(range(11,21,1))+list(range(101,111,1))
 centerline_channel_id=[60,52,53,48,45,41,35]
 horizontal_channel_id=[60,61,62,63,1,2,3]+[35,34,33,31,30,29,28]
 
+def _default_pxy():
+    return (0., 0.)
+
+
+def _rotate_pixel(pixel_pos, tile_orientation):
+    return pixel_pos[0]*tile_orientation[2], pixel_pos[1]*tile_orientation[1]
+
+
 def tile_to_io_channel(tile):
     io_channel=[]
     for t in tile:
         for i in range(1,5,1): io_channel.append( ((t-1)*4)+i )
     return io_channel
 
-def load_yaml(geometry_path):
+
+def load_multitile_geometry(geometry_path):
+    
+    geo = None
+    
     with open(geometry_path) as fi:
         geo = yaml.full_load(fi)
-        chip_pix = dict([(chip_id, pix) for chip_id,pix in geo['chips']])
-        vlines=np.linspace(-1*(geo['width']/2), geo['width']/2, 11)
-        hlines=np.linspace(-1*(geo['height']/2), geo['height']/2, 11)    
-    return geo, chip_pix, vlines, hlines
 
-def anode_xy(ax, geo, chip_pix, vertical_lines, horizontal_lines, d, \
-             metric, normalization, iog):
+    # Adapted from: https://github.com/larpix/larpix-v2-testing-scripts/blob/master/event-display/evd_lib.py
+
+    pixel_pitch = geo['pixel_pitch']
+
+    chip_channel_to_position = geo['chip_channel_to_position']
+    tile_orientations = geo['tile_orientations']
+    tile_positions = geo['tile_positions']
+    tpc_centers = geo['tpc_centers']
+    tile_indeces = geo['tile_indeces']
+    xs = np.array(list(chip_channel_to_position.values()))[
+        :, 0] * pixel_pitch
+    ys = np.array(list(chip_channel_to_position.values()))[
+        :, 1] * pixel_pitch
+    x_size = max(xs)-min(xs)+pixel_pitch
+    y_size = max(ys)-min(ys)+pixel_pitch
+
+    tile_geometry = defaultdict(int)
+    io_group_io_channel_to_tile = {}
+    geometry = defaultdict(_default_pxy)
+
+    for tile in geo['tile_chip_to_io']:
+        tile_orientation = tile_orientations[tile]
+        tile_geometry[tile] = tile_positions[tile], tile_orientations[tile]
+        for chip in geo['tile_chip_to_io'][tile]:
+            io_group_io_channel = geo['tile_chip_to_io'][tile][chip]
+            io_group = io_group_io_channel//1000
+            io_channel = io_group_io_channel % 1000
+            io_group_io_channel_to_tile[(
+                io_group, io_channel)] = tile
+
+        for chip_channel in geo['chip_channel_to_position']:
+            chip = chip_channel // 1000
+            channel = chip_channel % 1000
+            try:
+                io_group_io_channel = geo['tile_chip_to_io'][tile][chip]
+            except KeyError:
+                print("Chip %i on tile %i not present in network" %
+                      (chip, tile))
+                continue
+
+            io_group = io_group_io_channel // 1000
+            io_channel = io_group_io_channel % 1000
+            x = chip_channel_to_position[chip_channel][0] * \
+                pixel_pitch + pixel_pitch / 2 - x_size / 2
+            y = chip_channel_to_position[chip_channel][1] * \
+                pixel_pitch + pixel_pitch / 2 - y_size / 2
+
+            x, y = _rotate_pixel((x, y), tile_orientation)
+            x += tile_positions[tile][2] + \
+                tpc_centers[tile_indeces[tile][0]][0]
+            y += tile_positions[tile][1] + \
+                tpc_centers[tile_indeces[tile][0]][1]
+
+            geometry[(io_group, io_group_io_channel_to_tile[(
+                io_group, io_channel)], chip, channel)] = x, y
+    
+    geometry['pixel_pitch'] = pixel_pitch
+
+    return geometry
+
+
+def anode_xy(ax, geo, d, metric, normalization, iog):
+    
+    cmap = cm.get_cmap('viridis')
+    
     if metric=='mean': metric=0
     if metric=='std': metric=1
      
-    tile_dy = abs(max(vertical_lines))+abs(min(vertical_lines))
-    tile_y_placement = [tile_dy*i for i in range(5)]
-    mid_y = tile_y_placement[2]
-    tile_y_placement = [typ-mid_y for typ in tile_y_placement]
-    mid_vl = tile_dy/2.
-    chip_y_placement = [typ+vl+mid_vl for typ in tile_y_placement[0:-1] \
-                        for vl in vertical_lines[0:-1]]
-    
-    tile_dx = abs(max(horizontal_lines))+abs(min(horizontal_lines))
-    tile_x_placement = [tile_dx*i for i in range(3)]
-    mid_x = tile_x_placement[1]
-    tile_x_placement = [txp-mid_x for txp in tile_x_placement]
-    mid_hl = tile_dx/2.
-    chip_x_placement = [txp+hl+mid_hl for txp in tile_x_placement[0:-1] \
-                        for hl in horizontal_lines[0:-1]]
-    
-    #print('iog =',iog)
-    #print('tile_dx =',tile_dx)
-    #print('tile_dy =',tile_dy)
 
     if metric == 0: ax.set_title('io_group '+str(iog)+" Mean")
     elif metric == 1: ax.set_title('io_group '+str(iog)+" RMS")
-#    ax.set_xlim(tile_x_placement[0]*1.01,tile_x_placement[-1]*1.01)
-#    ax.set_ylim(tile_y_placement[0]*1.01,tile_y_placement[-1]*1.01)
-#
-#    for typ in tile_y_placement:
-#        ax.hlines(y=typ, xmin=tile_x_placement[0],
-#                     xmax=tile_x_placement[-1], colors=['k'], \
-#                     linestyle='solid')
-#
-#    for txp in tile_x_placement:
-#        ax.vlines(x=txp, ymin=tile_y_placement[0],
-#                     ymax=tile_y_placement[-1], colors=['k'], \
-#                     linestyle='solid')
-#
-#    for cyp in chip_y_placement:
-#        ax.hlines(y=cyp, xmin=tile_x_placement[0], \
-#                     xmax=tile_x_placement[-1], colors=['k'], \
-#                     linestyle='dotted')
-#    for cxp in chip_x_placement:
-#        ax.vlines(x=cxp, ymin=tile_y_placement[0], \
-#                     ymax=tile_y_placement[-1], colors=['k'], \
-#                     linestyle='dotted') 
+    
 
-    pitch=4.4 # mm
     grid_tpc = np.zeros((7*10*4,7*10*2))
+    npix = 70
     if iog in [5,6]:
         grid_tpc = np.zeros((8*10*4,8*10*2))
-        pitch = 3.87975
+        npix = 80
+    
+    pitch=geo['pixel_pitch']
 
-    displacement={1:(-0.5,1.5), 2:(0.5,1.5), 3:(-0.5,0.5), 4:(0.5, 0.5), \
-                  5:(-0.5,-0.5), 6:(0.5,-0.5), 7:(-0.5,-1.5), 8:(0.5,-1.5)}
-    shift_g = {1:(0,3),2:(1,3),3:(0,2),4:(1,2),5:(0,1),6:(1,1),7:(0,0),8:(1,0)}
     for i in range(1,9,1):
         io_channels=tile_to_io_channel([i])
-        for chipid in chip_pix.keys():
-            x,y = [[] for i in range(2)]
+        tile = i + 8 * (1 - (iog % 2))
+        for chipid in range(11, 111):
             for j in [iog]:
                 for ioc in io_channels:
                     chip_key=str(j)+'-'+str(ioc)+'-'+str(chipid)
@@ -105,21 +137,16 @@ def anode_xy(ax, geo, chip_pix, vertical_lines, horizontal_lines, d, \
                         if channelid in [6,7,8,9,22,23,24,25,38,39,40,54,55,56,57] and iog not in [5,6]: continue
                         if d[chip_key][channelid][0]==-1: continue
                         weight=d[chip_key][channelid][metric]/normalization
-                        if i%2!=0:
-                            xc=geo['pixels'][chip_pix[chipid][channelid]][1]
-                            yc=geo['pixels'][chip_pix[chipid][channelid]][2]*-1
-                        if i%2==0:
-                            xc=geo['pixels'][chip_pix[chipid][channelid]][1]*-1
-                            yc=geo['pixels'][chip_pix[chipid][channelid]][2]
-                        x_g=int((xc+tile_dx/2-pitch/2)/pitch)+70*shift_g[i][0]
-                        y_g=int((yc+tile_dy/2-pitch/2)/pitch)+70*shift_g[i][1]
-                        if iog in [5,6]:
-                            x_g=int((xc+tile_dx/2)/pitch)+80*shift_g[i][0]
-                            y_g=int((yc+tile_dy/2)/pitch)+80*shift_g[i][1]
-                        if weight>1.: weight=1.0
-                        grid_tpc[y_g][x_g] = weight
-                        cmap = cm.get_cmap('viridis')
 
+                        x, y = geo[(2 - (iog % 2), tile, chipid, channelid)]
+                        
+                        # print(chip_key, '-', channelid)
+                        # print(x, ', ', y)
+                        x_ind = int((x + npix*pitch)/pitch) 
+                        y_ind = int((y + npix*2*pitch)/pitch) 
+                        # print(x_ind, ', ', y_ind)
+                        grid_tpc[y_ind][x_ind] = weight
+    
     ax.imshow(grid_tpc,interpolation='none',cmap='viridis',vmin=0.,vmax=1.,origin='lower')
     ax.axes.get_xaxis().set_ticklabels([])
     ax.axes.get_yaxis().set_ticklabels([])
@@ -218,8 +245,10 @@ def main(input_file, output_file):
     timestamp = date_from_ped_filename(input_file)
 
     with open(input_file,'r') as f: d = json.load(f)
-    geo, chip_pix, vertical_lines, horizontal_lines = load_yaml('layout-2.4.0.yaml')
-    geo_v2b, chip_pix_v2b, vertical_lines_v2b, horizontal_lines_v2b = load_yaml('layout-2.5.1.yaml')
+    geo_mod0 = load_multitile_geometry('layouts_v4/multi_tile_layout-2.3.16_mod0_swap_T8T4T7.yaml')
+    geo_mod1 = load_multitile_geometry('layouts_v4/multi_tile_layout-2.3.16_mod1_noswap.yaml')
+    geo_mod2 = load_multitile_geometry('layouts_v4/multi_tile_layout-2.5.16_mod2_swap_T7T8.yaml')
+    geo_mod3 = load_multitile_geometry('layouts_v4/multi_tile_layout-2.3.16_mod3_swap_T5T8.yaml')
 
     fig = plt.figure(constrained_layout=True,figsize=(30,16))
     fig_grid = fig.add_gridspec(ncols=9,nrows=2,height_ratios=[1,1],width_ratios=[1,1,1,1,1,1,1,1,0.2])
@@ -232,12 +261,19 @@ def main(input_file, output_file):
         ax_rms = fig.add_subplot(fig_grid[1,iog-1])
         anode_rms_plots.append(ax_rms)
         # anode plots
-        if iog in [5,6]:
-            anode_xy(anode_rms_plots[iog-1],geo_v2b, chip_pix_v2b, vertical_lines_v2b, horizontal_lines_v2b, d, 'std', 10,iog)
-            anode_xy(anode_mean_plots[iog-1],geo_v2b, chip_pix_v2b, vertical_lines_v2b, horizontal_lines_v2b, d, 'mean', 150,iog)
+        
+        if iog in [1,2]:
+            anode_xy(anode_rms_plots[iog-1], geo_mod0, d, 'std', 10,iog)
+            anode_xy(anode_mean_plots[iog-1], geo_mod0, d, 'mean', 150,iog)
+        elif iog in [3,4]:
+            anode_xy(anode_rms_plots[iog-1], geo_mod1, d, 'std', 10,iog)
+            anode_xy(anode_mean_plots[iog-1], geo_mod1, d, 'mean', 150,iog)
+        elif iog in [5,6]:
+            anode_xy(anode_rms_plots[iog-1], geo_mod2, d, 'std', 10,iog)
+            anode_xy(anode_mean_plots[iog-1], geo_mod2, d, 'mean', 150,iog)
         else:
-            anode_xy(anode_rms_plots[iog-1],geo, chip_pix, vertical_lines, horizontal_lines, d, 'std', 10,iog)
-            anode_xy(anode_mean_plots[iog-1],geo, chip_pix, vertical_lines, horizontal_lines, d, 'mean', 150,iog)
+            anode_xy(anode_rms_plots[iog-1], geo_mod3, d, 'std', 10,iog)
+            anode_xy(anode_mean_plots[iog-1], geo_mod3, d, 'mean', 150,iog)
 
 
     cbar_ax = fig.add_subplot(fig_grid[0,8])
@@ -256,6 +292,7 @@ def main(input_file, output_file):
 
     #plt.show()
     # outname = input_file.split('.json')[0]+'_2x2.png'
+    print('Saving to: ', output_file)
     fig.savefig(output_file)
 
 if __name__=='__main__':
