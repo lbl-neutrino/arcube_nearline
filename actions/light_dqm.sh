@@ -19,6 +19,8 @@ get_outpath() {
     realpath "$outbase/$reldir/$outname"
 }
 
+foas=$(dirname "${BASH_SOURCE[0]}")/light_dqm/v3_FOAS-2.json
+
 plotpath1=$(get_outpath "$plot_outbase" main.pdf)
 plotpath2=$(get_outpath "$plot_outbase" baseline.png)
 plotpath3=$(get_outpath "$plot_outbase" dead_chan.png)
@@ -33,6 +35,7 @@ if [[ "$(stat -c %s "$inpath")" -gt 50000000000 ]]; then
 fi
 
 python3 light_dqm.py --input_file "$inpath" \
+    --dead_json "$foas" \
     --output_file_1 "$plotpath1" \
     --output_file_2 "$plotpath2" \
     --output_file_3 "$plotpath3" \
