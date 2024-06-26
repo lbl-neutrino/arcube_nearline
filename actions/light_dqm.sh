@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
-set -o errexit
+stage=light_dqm
+
+source $(dirname $BASH_SOURCE)/../lib/init.inc.sh
 
 inbase=/global/cfs/cdirs/dune/www/data/2x2/nearline/flowed_light
-plot_outbase=/global/cfs/cdirs/dune/www/data/2x2/nearline/light_dqm/plots
-log_outbase=/pscratch/sd/d/dunepr/logs/nearline/light_dqm
 
 inpath=$1; shift
 

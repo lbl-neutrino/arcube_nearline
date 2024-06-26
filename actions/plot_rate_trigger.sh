@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 
-set -o errexit
+stage=rate_trigger
+
+source $(dirname $BASH_SOURCE)/../lib/init.inc.sh
+
+plot_outbase=$data_outbase/plots
 
 inbase=/global/cfs/cdirs/dune/www/data/2x2/nearline/packet
-plot_outbase=/global/cfs/cdirs/dune/www/data/2x2/nearline/rate_trigger/plots
-log_outbase=/pscratch/sd/d/dunepr/logs/nearline/rate_trigger
 
 inpath=$1; shift
 

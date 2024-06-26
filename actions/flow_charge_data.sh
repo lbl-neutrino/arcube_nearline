@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
-set -o errexit
+stage=flowed_charge
 
-inbase=/global/cfs/cdirs/dune/www/data/2x2/nearline/packet
-data_outbase=/global/cfs/cdirs/dune/www/data/2x2/nearline/flowed_charge
-log_outbase=/pscratch/sd/d/dunepr/logs/nearline/flowed_charge
+source $(dirname $BASH_SOURCE)/../lib/init.inc.sh
+
+inbase=$data_root/nearline/packet
 
 inpath=$1; shift
 

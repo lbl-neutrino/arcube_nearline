@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 
-set -o errexit
+stage=packet
 
-inbase=/global/cfs/cdirs/dune/www/data/2x2/CRS
-data_outbase=/global/cfs/cdirs/dune/www/data/2x2/nearline/packet
-log_outbase=/pscratch/sd/d/dunepr/logs/nearline/packet
+source $(dirname $BASH_SOURCE)/../lib/init.inc.sh
+
+inbase=$data_root/CRS
+
+inpath=$1; shift
 
 get_outpath() {
     inpath=$1
@@ -14,8 +16,6 @@ get_outpath() {
     outname=$(basename "$inpath" | sed s/binary/packet/)
     echo "$outbase/$reldir/$outname"
 }
-
-inpath=$1; shift
 
 outpath=$(get_outpath "$inpath" "$data_outbase")
 logpath=$(get_outpath "$inpath" "$log_outbase").log

@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 
-set -o errexit
+stage=panel_ped
 
-inbase=/global/cfs/cdirs/dune/www/data/2x2/nearline/packet
-json_outbase=/global/cfs/cdirs/dune/www/data/2x2/nearline/panel_ped/jsons
-plot_outbase=/global/cfs/cdirs/dune/www/data/2x2/nearline/panel_ped/plots
-log_outbase=/pscratch/sd/d/dunepr/logs/nearline/panel_ped
+source $(dirname $BASH_SOURCE)/../lib/init.inc.sh
+
+inbase=$data_root/nearline/packet
 
 inpath=$1; shift
 

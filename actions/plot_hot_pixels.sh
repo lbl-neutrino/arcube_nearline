@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
-set -o errexit
+stage=hot_pixels
+
+source $(dirname $BASH_SOURCE)/../lib/init.inc.sh
 
 inbase=/global/cfs/cdirs/dune/www/data/2x2/nearline/packet
-plot_outbase=/global/cfs/cdirs/dune/www/data/2x2/nearline/hot_pixels/plots
-log_outbase=/pscratch/sd/d/dunepr/logs/nearline/hot_pixels
 
 inpath=$1; shift
 
