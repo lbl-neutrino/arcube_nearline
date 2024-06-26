@@ -107,7 +107,7 @@ def load_multitile_geometry(geometry_path):
 
 def anode_xy(ax, geo, d, metric, normalization, iog):
     
-    cmap = cm.get_cmap('viridis')
+    cmap = matplotlib.colormaps['viridis']
     
     if metric=='mean': metric=0
     if metric=='std': metric=1
