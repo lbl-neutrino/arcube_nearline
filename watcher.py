@@ -3,7 +3,7 @@
 import argparse
 from pathlib import Path
 import time
-from typing import Callable
+from typing import Callable, Optional
 
 from fireworks import Firework, LaunchPad, ScriptTask
 from watchdog.observers import Observer
@@ -22,7 +22,7 @@ class EventHandler(FileSystemEventHandler):
 class Watcher:
     def __init__(self, prog: Path, paths: list[Path], exts: list[str],
                  cond: Callable[[Path], bool],
-                 sleep_between_scans: int, min_file_age: int, max_file_age: int | None,
+                 sleep_between_scans: int, min_file_age: int, max_file_age: Optional[int],
                  priority: int):
         self.prog = prog
         self.paths = paths
