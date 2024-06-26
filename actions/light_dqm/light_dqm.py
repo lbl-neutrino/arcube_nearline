@@ -111,7 +111,7 @@ def emoji_thang(bsln_arr, input1, input2, module, typ):
     return color, text
 ##
 ##
-def baseline_graf(bsln_arr, MODULES, mod, input1, input2, output):
+def baseline_graf(bsln_arr, mod3_bsln, MODULES, mod, input1, input2, output):
     
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -145,7 +145,10 @@ def baseline_graf(bsln_arr, MODULES, mod, input1, input2, output):
         fig, axs = plt.subplots(4, 2, figsize=(4, 8))
         for i in range(4):
             for j in range(2):
-                color, text = emoji_thang(bsln_arr, input1, input2, i, j)
+                if (i*j)+i == 3:
+                    color, text = emoji_thang(mod3_bsln, input1, input2, i, j)
+                else:
+                    color, text = emoji_thang(bsln_arr, input1, input2, i, j)
                 # Plot rectangle
                 axs[i, j].add_patch(plt.Rectangle((0, 0), 1, 1, color=color))
                 axs[i, j].set_xticks([])
@@ -243,7 +246,10 @@ def bsline_pFile(wvfm_all, mod, output1, output2, MODULES, inputs):
     baseline_mask = (baseline_array > -31000) & (baseline_array < -25000)
     baseline_test = np.int64(baseline_array*(baseline_mask==0)+baseline_mask)
     baseline_test[baseline_test != 1] = 0
-    baseline_graf(baseline_test, MODULES, mod, inputs['inactive_channels'], inputs['bad_baseline'], output2)
+    mod3_mask = (baseline_array > -23000) & (baseline_array < -19000)
+    mod3_test = np.int64(baseline_array*(mod3_mask==0)+mod3_mask)
+    mod3_test[mod3_test != 1] = 0
+    baseline_graf(baseline_test, mod3_test, MODULES, mod, inputs['inactive_channels'], inputs['bad_baseline'], output2)
     
 ##
 ##
