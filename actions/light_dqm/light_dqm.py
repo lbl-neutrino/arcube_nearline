@@ -1259,7 +1259,7 @@ def main(input_file, dead_json, output_file_1, output_file_2, output_file_3):
     file = h5py.File(input_file, 'r')
 
     ## define the light waveform matrix ##
-    wvfm = file["light/wvfm/data"][::1]#['samples']#[::10,:,:,:]
+    wvfm = file["light/wvfm/data"][::8]#['samples']#[::10,:,:,:]
     #del file
     #light_wvfm_start = wvfm['samples']
     ## mask out inactive channels and remove pedestals##
