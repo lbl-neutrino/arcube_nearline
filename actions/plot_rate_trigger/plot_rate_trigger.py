@@ -30,10 +30,10 @@ def main(input_file, output_file):
     clock_tick = 100e-9 # 100ns
 
     drift_len = int(300e-3 / (1.65e-3/1e-6) / clock_tick) #  30cm / (1.65mm/us) / tick
-    trigger_bins = np.linspace(0*drift_len, 4*drift_len, drift_len//10) # 10 tick bins
+    trigger_bins = np.linspace(-0.1*drift_len, 4*drift_len, drift_len//20) # 10 tick bins
 
     io_groups = range(1, 9)
-    trig_io_group = 4
+    trig_io_group = 6
 
     f = h5py.File(input_file, 'r')
     p = f['packets']
@@ -63,9 +63,9 @@ def main(input_file, output_file):
         ax[iog%2, iog//2].set_xlabel('timestamp relative to external trigger [0.1 us]')
         ax[iog%2, iog//2].set_ylabel('count')
         ax[iog%2, iog//2].set_title(f'io_group = {iog+1}')
-        ax[iog%2, iog//2].axvline(0, color='k', linestyle='--', linewidth=1, label='A9 trigger')
-        ax[iog%2, iog//2].axvline(beam_start, color='g', linestyle='-', linewidth=1, label='Est. beam')
-        ax[iog%2, iog//2].axvline(beam_start+drift_len, color='b', linestyle='-', linewidth=1, label='Max. drift length')
+        ax[iog%2, iog//2].axvline(0, color='k', linestyle='--', linewidth=1, label='io_group = 6 trig.')
+        ax[iog%2, iog//2].axvline(drift_len*2, color='g', linestyle='-', linewidth=1, label='Half-nom. max drift len.')
+        ax[iog%2, iog//2].axvline(drift_len, color='b', linestyle='-', linewidth=1, label='Nom. max drift len.')
         if iog == 0:
             ax[iog%2, iog//2].legend()
     
