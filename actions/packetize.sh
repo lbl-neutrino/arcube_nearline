@@ -28,4 +28,4 @@ convert_rawhdf5_to_hdf5.py \
     --direct \
     --input_filename "$inpath" \
     --output_filename "$outpath" \
-    | tee "$logpath"
+    2>&1 | tee "$logpath"
