@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
-stage=panel_ped
+stage=hot_pixels
 
 source $(dirname $BASH_SOURCE)/../lib/init.inc.sh
 
-inbase=$data_root/nearline/packet
+inbase=/global/cfs/cdirs/dune/www/data/2x2/nearline/packet
 
 inpath=$1; shift
 
@@ -18,7 +18,6 @@ get_outpath() {
     echo "$outbase/$reldir/$outname"
 }
 
-jsonpath=$(get_outpath "$json_outbase" json)
 plotpath=$(get_outpath "$plot_outbase" png)
 logpath=$(get_outpath "$log_outbase" log)
 
@@ -29,7 +28,6 @@ if [[ "$(stat -c %s "$inpath")" -gt 10000000000 ]]; then
     exit 1
 fi
 
-mkdir -p "$(dirname "$jsonpath")" "$(dirname "$plotpath")" "$(dirname "$logpath")"
+mkdir -p "$(dirname "$plotpath")" "$(dirname "$logpath")"
 
-./make-mean-std-json.py --input_file "$inpath" --output_file "$jsonpath" 2>&1 | tee "$logpath"
-./make_8iog_panel_ped.py --input_file "$jsonpath" --output_file "$plotpath" 2>&1 | tee "$logpath"
+./make_panel_ped.py --input_file "$inpath" --output_file "$plotpath" 2>&1 | tee "$logpath"
