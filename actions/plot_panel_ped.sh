@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
-stage=hot_pixels
+stage=panel_ped
 
 source $(dirname $BASH_SOURCE)/../lib/init.inc.sh
 
-inbase=/global/cfs/cdirs/dune/www/data/2x2/nearline/packet
+inbase=$data_root/nearline/packet
 
 inpath=$1; shift
 
