@@ -11,8 +11,8 @@ basedir=$PWD
 mkdir _install
 cd _install
 
-python -m venv nearline.venv
-source nearline.venv/bin/activate
+python -m venv nearline_fsd.venv
+source nearline_fsd.venv/bin/activate
 
 pip install --upgrade pip wheel setuptools
 

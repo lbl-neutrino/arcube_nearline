@@ -4,7 +4,7 @@ if [[ "$LMOD_SYSTEM_NAME" == "perlmutter" ]]; then
     module load python/3.11
 fi
 
-source _install/nearline.venv/bin/activate
+source _install/nearline_fsd.venv/bin/activate
 
 export FW_CONFIG_FILE=$(realpath config/FW_config.yaml)
 

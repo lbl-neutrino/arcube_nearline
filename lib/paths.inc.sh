@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-default_data_root=/global/cfs/cdirs/dune/www/data/2x2
+default_data_root=/global/cfs/cdirs/dune/www/data/FSD
 default_log_root=/pscratch/sd/d/dunepr/logs
 
 data_root=${ARCUBE_NEARLINE_DATA_ROOT:-$default_data_root}

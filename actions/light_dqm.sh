@@ -4,7 +4,7 @@ stage=light_dqm
 
 source $(dirname $BASH_SOURCE)/../lib/init.inc.sh
 
-inbase=/global/cfs/cdirs/dune/www/data/2x2/nearline/flowed_light
+inbase=/global/cfs/cdirs/dune/www/data/FSD/nearline/flowed_light
 
 inpath=$1; shift
 
@@ -19,7 +19,7 @@ get_outpath() {
     realpath "$outbase/$reldir/$outname"
 }
 
-foas=$(dirname "${BASH_SOURCE[0]}")/light_dqm/v3_FOAS-2.json
+foas=$(dirname "${BASH_SOURCE[0]}")/light_dqm/fsd_issues.json
 
 plotpath1=$(get_outpath "$plot_outbase" main.pdf)
 plotpath2=$(get_outpath "$plot_outbase" baseline.png)
