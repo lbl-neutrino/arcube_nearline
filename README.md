@@ -8,7 +8,7 @@ Nearline prompt processing workflows for DUNE's ArgonCube 2x2 demonstrator.
 admin/install.sh
 ```
 
-The installation will go into `_install`. After installing, edit `config/my_launchpad.yaml` to configure the MongoDB connection.
+The installation will go into `_install`. After installing, edit `config/my_launchpad.yaml` to configure the MongoDB connection. If it's a new database, you will need to run `lpad reset`.
 
 ## Environment setup
 
@@ -21,7 +21,7 @@ If your `my_launchpad.yaml` points to a new Mongo database, run `lpad reset` to 
 ## Monitoring the filesystem and loading the DB
 
 ``` bash
-./watcher.py actions/packetize.sh /global/cfs/cdirs/dune/www/data/2x2/CRS/commission/April2024
+./watcher.py actions/packetize.sh --path /global/cfs/cdirs/dune/www/data/2x2/CRS/commission/April2024
 ```
 
 This will continue to run in the foreground.
