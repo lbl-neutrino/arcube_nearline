@@ -30,4 +30,4 @@ fi
 
 mkdir -p "$(dirname "$plotpath")" "$(dirname "$logpath")"
 
-./make_panel_ped.py --input_file "$inpath" --output_file "$plotpath" 2>&1 | tee "$logpath"
+./make_fsd_panel.py --input_file "$inpath" --output_file "$plotpath" 2>&1 | tee "$logpath"
