@@ -48,7 +48,8 @@ class Watcher:
 
         script = f'{self.prog} {p}'
         task = ScriptTask.from_str(script)
-        spec = {'_priority': self.priority}
+        spec = {'_priority': self.priority,
+                '_category': self.prog.name}
         fw = Firework(task, name=self.prog.name, spec=spec)
         # NOTE: add_wf updates fw.fw_id to match the DB's value
         self.lpad.add_wf(fw)
