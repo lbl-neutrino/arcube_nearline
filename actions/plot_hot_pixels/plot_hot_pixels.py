@@ -30,6 +30,8 @@ def main(input_file, output_file):
     f_data = f['packets'][mask_data][:]
 
     timestamp = date_from_ped_filename(input_file)
+    # output_dir2 is a static directory used to store the latest png files for the nearline DQM
+    output_dir2 = '/global/cfs/projectdirs/dune/www/data/FSD/nearline/hot_pixels/latest_plots/'
 
     # the following caches are keyed by io_group
     # and are used to speed up the 4-panel plot
@@ -67,9 +69,15 @@ def main(input_file, output_file):
         plt.xscale('log')
         plt.tight_layout()
 
+        # save the images with packet and time info in their title
         assert output_file.endswith('.png')
         filename = output_file[:-4] + ".io_group_" + str(i) + '.png'
         plt.savefig(filename)
+
+        # save the images without packet and time info in their title (for nearline DQM)
+        filename2 = output_dir2 + 'hot_pixels.latest.io_group_' + str(i) + '.png'
+        plt.savefig(filename2)
+
         print("Saved io_group ", i, "to: ", filename)
 
     # plot a 4-panel version of the top-100 tables
@@ -92,9 +100,16 @@ def main(input_file, output_file):
         ax[i - 1].set_xscale('log')
 
     plt.tight_layout()
+
+    # save the images with packet and time info in their title
     assert output_file.endswith('.png')
     filename = output_file[:-4] + ".all_io_groups" + '.png'
     plt.savefig(filename)
+
+    # save the images without packet and time info in their title
+    filename2 = output_dir2 + "hot_pixels.latest.all_io_groups.png"
+    plt.savefig(filename2)
+
     print("Saved 4-panel version to: ", filename)
 
 if __name__ == '__main__':
