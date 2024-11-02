@@ -19,6 +19,7 @@ get_outpath() {
     realpath "$outbase/$reldir/$outname"
 }
 
+tmp_flowpath=$(get_outpath "$staging_outbase" FLOW.hdf5)
 flowpath=$(get_outpath "$data_outbase" FLOW.hdf5)
 logpath=$(get_outpath "$log_outbase" log)
 
@@ -35,8 +36,10 @@ workflow3='yamls/fsd_flow/workflows/combined/combined_reconstruction.yaml'
 workflow4='yamls/fsd_flow/workflows/charge/prompt_calibration.yaml'
 # workflow5='yamls/proto_nd_flow/workflows/charge/final_calibration.yaml'
 
-rm -f "$flowpath"
+rm -f "$tmp_flowpath" "$flowpath"
 
 # time h5flow -c "$workflow1" "$workflow2" "$workflow3" "$workflow4" "$workflow5" \
 time h5flow -c "$workflow1" "$workflow2" "$workflow3" "$workflow4" \
-    -i "$inpath" -o "$flowpath" 2>&1 | tee "$logpath"
+    -i "$inpath" -o "$tmp_flowpath" 2>&1 | tee "$logpath"
+
+mv "$tmp_flowpath" "$flowpath"
