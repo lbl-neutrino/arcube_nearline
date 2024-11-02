@@ -3,6 +3,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gs
 from datetime import datetime
+from pathlib import Path
 import matplotlib.dates as mdates
 import yaml
 from copy import copy
@@ -194,9 +195,10 @@ def anode_xy(ax, geo, pitch, d, metric, normalization):
 
 
 def date_from_filename(filename):
-    #date_str = filename.split('-')[-1].split('.json')[0]
-    #date_str = filename.split('-')[-1].split('CET.json')[0]
-    date_str = filename.split('-')[-1].split('_CEST.h5')[0]
+    date_str = Path(filename).stem.split('-')[-1]
+    # strip the timezone:
+    date_str = '_'.join(date_str.split('_')[:-1])
+
     #timestamp = datetime.fromisoformat(date_str)
     print(date_str)
     #timestamp = datetime.strptime(date_str,"%Y_%m_%d_%H_%M%Z")
