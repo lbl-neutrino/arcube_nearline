@@ -62,7 +62,19 @@ class Watcher:
         return self.db['fireworks'].find_one(q)
 
     def snarf(self):
-        for path in self.paths:
+        paths = self.paths
+
+        # HACK to avoid the pacmon subdir with its many plots
+        if str(self.paths[0]) == '/global/cfs/cdirs/dune/www/data/FSD/CRS/CRS':
+            paths = []
+            for path in self.paths[0].iterdir():
+                if not path.is_dir():
+                    continue
+                if path.name == 'pacmon':
+                    continue
+                paths.append(path)
+
+        for path in paths:
             for ext in self.exts:
                 for p in path.rglob(f'*.{ext}'):
                     self.maybe_make_firework(p)
