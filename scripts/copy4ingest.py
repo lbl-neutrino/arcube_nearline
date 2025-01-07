@@ -27,6 +27,9 @@ def main():
             suffix = '.hdf5'
         meta['name'] = datapath.with_suffix(suffix).name
 
+        for k in ['namespace', 'core.application.version', 'core.run_type']:
+            meta[k] = meta[k].replace('2x2', 'fsd')
+
         out_datapath = \
             args.outdir / datapath.relative_to(args.indir).with_suffix(suffix)
         out_jsonpath = out_datapath.with_suffix(out_datapath.suffix + '.json')
