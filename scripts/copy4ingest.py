@@ -36,7 +36,8 @@ def main():
             continue
 
         os.makedirs(out_datapath.parent, exist_ok=True)
-        print(f'COPY {datapath} --> {out_datapath}')
+        print(f'FROM {datapath}')
+        print(f'TO {out_datapath}')
         shutil.copy(datapath, out_datapath)
 
         print(f'WRITE {out_jsonpath}\n')
