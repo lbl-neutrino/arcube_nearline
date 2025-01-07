@@ -29,12 +29,16 @@ def main():
 
         out_datapath = \
             args.outdir / datapath.relative_to(args.indir).with_suffix(suffix)
+        out_jsonpath = out_datapath.with_suffix(out_datapath.suffix + '.json')
+
+        if out_datapath.exists() and out_jsonpath.exists():
+            print(f'SKIP {out_datapath}\n')
+            continue
 
         os.makedirs(out_datapath.parent, exist_ok=True)
         print(f'COPY {datapath} --> {out_datapath}')
         shutil.copy(datapath, out_datapath)
 
-        out_jsonpath = out_datapath.with_suffix(out_datapath.suffix + '.json')
         print(f'WRITE {out_jsonpath}\n')
         with open(out_jsonpath, 'w') as f:
             json.dump(meta, f)
