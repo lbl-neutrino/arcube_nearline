@@ -41,7 +41,7 @@ def main():
 
         print(f'WRITE {out_jsonpath}\n')
         with open(out_jsonpath, 'w') as f:
-            json.dump(meta, f)
+            json.dump(meta, f, indent=4)
 
 
 if __name__ == '__main__':
