@@ -30,7 +30,7 @@ def main():
         out_datapath = \
             args.outdir / datapath.relative_to(args.indir).with_suffix(suffix)
 
-        os.mkdir(out_datapath.parent)
+        os.makedirs(out_datapath.parent, exist_ok=True)
         print(f'COPY {datapath} --> {out_datapath}')
         shutil.copy(datapath, out_datapath)
 
