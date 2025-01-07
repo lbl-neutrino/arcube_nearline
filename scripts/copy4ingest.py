@@ -16,6 +16,10 @@ def main():
     for jsonpath in args.indir.rglob('*.json'):
         datapath = jsonpath.parent / jsonpath.stem
 
+        if not datapath.exists():
+            print(f'INVALID {jsonpath}\n')
+            continue
+
         with open(jsonpath) as f:
             meta = json.load(f)
 
