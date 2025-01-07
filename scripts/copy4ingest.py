@@ -25,7 +25,7 @@ def main():
         suffix = datapath.suffix
         if suffix == '.h5':
             suffix = '.hdf5'
-        meta['name'] = datapath.with_suffix(suffix)
+        meta['name'] = datapath.with_suffix(suffix).as_posix()
 
         out_datapath = \
             args.outdir / datapath.relative_to(args.indir).with_suffix(suffix)
