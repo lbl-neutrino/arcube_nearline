@@ -133,10 +133,11 @@ def clopper_pearson(passed, total, interval=0.68):
         frac = passed / total
         frac = np.nan_to_num(frac, nan=0.0)
     # if total is zero, set frac to 0
-    frac[total == 0] = 0.0
+    frac = np.where(total == 0, 0.0, frac)
     # if frac is 0 and total is not zero, set lower and upper to 0 and 1 respectively
-    lower[frac == 0] = 0.0
-    upper[frac == 0] = 1.0
+    mask = (frac == 0) & (total != 0)
+    lower = np.where(mask, 0.0, lower)
+    upper = np.where(mask, 1.0, upper)
     # Calculate errors
     err_low = 100 * (frac - lower)
     err_up = 100 * (upper - frac)
