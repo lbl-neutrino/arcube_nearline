@@ -128,9 +128,16 @@ def clopper_pearson(passed, total, interval=0.68):
     upper = beta.ppf(1 - alpha/2, passed + 1, total - passed)
     lower = np.nan_to_num(lower, nan=0.0)
     upper = np.nan_to_num(upper, nan=1.0)
+    frac = np.zeros_like(passed, dtype=float)
     with np.errstate(divide='ignore', invalid='ignore'):
         frac = passed / total
         frac = np.nan_to_num(frac, nan=0.0)
+    # if total is zero, set frac to 0
+    frac[total == 0] = 0.0
+    # if frac is 0 and total is not zero, set lower and upper to 0 and 1 respectively
+    lower[frac == 0] = 0.0
+    upper[frac == 0] = 1.0
+    # Calculate errors
     err_low = 100 * (frac - lower)
     err_up = 100 * (upper - frac)
     pct = 100 * frac
@@ -1254,6 +1261,21 @@ def read_from_json(file_indices, output_dir, filename):
     data_u = np.sqrt(np.sum(data_u**2, axis=0))
     return data_c, data_l, data_u
 
+def save_spectra_as_json(file_index, spectra_roi, output_dir, filename):
+    """
+    Save frequency spectra data as JSON file.
+    Data is 2D: i_adc, i_ch, where i_adc is the ADC index and i_ch is the channel index.
+    """
+    data = {
+        'file_index': int(file_index),
+        'spectra_roi': spectra_roi.tolist()
+    }
+    # Use append mode if file exists, else write mode
+    mode = 'a' if os.path.exists(output_dir + filename) else 'w'
+    with open(output_dir+filename, mode) as f:
+        json.dump(data, f)
+        f.write('\n')
+
 def save_eff_as_json(file_index, passed, totals, output_dir, filename):
     """
     Save efficiency data as JSON file.
@@ -1378,6 +1400,20 @@ def main():
         freq_bins, noise_spectra, noise_spectrum, upper, lower = get_noise_spectra(
             wvfms_v, max_mask
         )
+        rois_mhz = np.array([0.5, 1.8, 4.6, 7.1, 8.5, 10, 11.5, 19, 20, 25, 30])
+        # convert to index from frequency bins
+        rois_bins = np.array([np.argmin(np.abs(freq_bins*1e-6 - roi)) for roi in rois_mhz])
+
+        # loop over rois, and save spectrum bin
+        for i_roi in range(len(rois_bins)):
+            roi_bin = rois_bins[i_roi]
+            spur = noise_spectrum[:, :, roi_bin]
+            # convert to string and replace '.' with '_'
+            roi_mhz = str(rois_mhz[i_roi]).replace('.', '_')
+            save_spectra_as_json(
+                i_file, spur, args.output_dir,
+                f'noise_spectra_roi_{roi_mhz}mhz.json'
+            )
         del wvfms_v
         plot_noise_spectra_epcb(
             freq_bins, noise_spectrum, None, None,
