@@ -4,7 +4,7 @@ stage=light_dqm
 
 source $(dirname $BASH_SOURCE)/../lib/init.inc.sh
 
-inbase=/global/cfs/cdirs/dune/www/data/2x2/nearline/flowed_light
+inbase=/global/cfs/cdirs/dune/www/data/2x2/nearline_run2/flowed_light
 
 inpath=$1; shift
 
