@@ -19,6 +19,7 @@ python light_dqm.py
                        --file_syntax mpd_run_dbg_rctl_
                        --channel_status_file channel_status.csv
                        --output_dir dqm_plots/
+                       --tmp_dir tmp/
                        --units ADC16
                        --ptps16bit 150
                        --start_run 0
@@ -26,6 +27,8 @@ python light_dqm.py
                        --ncomp 5
                        --powspec_nevts 200
                        --max_evts 500
+                       --write_json_blobs False
+                       --merge_grafana_plots False
 '''
 ############################################
 
@@ -41,6 +44,7 @@ import json
 import sys
 import os
 import time
+import glob
 from PyPDF2 import PdfMerger
 from matplotlib.lines import Line2D
 
@@ -57,7 +61,8 @@ def parse_args():
     parser.add_argument('--input_path', type=str, default='.', help='Path to input file')
     parser.add_argument('--file_syntax', type=str, default='.', help='File name syntax')
     parser.add_argument('--channel_status_file', type=str, default='.', help='Channel status file')
-    parser.add_argument('--output_dir', type=str, default='.', help='Directory to save output plots')
+    parser.add_argument('--output_dir', type=str, default='.', help='Directory to save final output plots')
+    parser.add_argument('--tmp_dir', type=str, default='tmp', help='Directory to save temporary output plots')
     parser.add_argument('--units', type=str, default='ADC16', choices=['ADC16', 'ADC14', 'V'], help='Units for waveform')
     parser.add_argument('--ptps16bit', type=int, default=150, help='Peak-to-peak threshold for 16-bit ADC')
     parser.add_argument('--start_run', type=int, default=0, help='Start run for processing')
@@ -65,6 +70,8 @@ def parse_args():
     parser.add_argument('--ncomp', type=int, default=-1, help='Number of previous files to compare')
     parser.add_argument('--powspec_nevts', type=int, default=100, help='Number of events to process per file for noise spectra')
     parser.add_argument('--max_evts', type=int, default=1000, help='Maximum number of events to process for the whole file')
+    parser.add_argument('--write_json_blobs', type=bool, default=False, help='Saves all data to json blobs if true')
+    parser.add_argument('--merge_grafana_plots', type=bool, default=False, help='Merge baselines and flatlines grafana plots')
     return parser.parse_args()
 
 # ----------------------------- #
@@ -269,9 +276,7 @@ def plot_flatline_mask(flatline_mask, channel_status=None, times=None,
     output_pdf = f"{args.output_dir}/{output_name}"
     with PdfPages(output_pdf) as pdf:
         pdf.savefig()
-    grafana_output = f"{args.output_dir}/flatline_latest.png"
-    plt.savefig(grafana_output, bbox_inches='tight', dpi=300)
-    plt.close()
+
 
 
 def check_baseline(prev_baseline, current_baseline, units='ADC16', threshold=200):
@@ -379,10 +384,7 @@ def plot_baseline_mask(baseline_mask, channel_status=None, times=None,
     output_pdf = f"{args.output_dir}/{output_name}"
     with PdfPages(output_pdf) as pdf:
         pdf.savefig()
-    grafana_output = f"{args.output_dir}/baseline_latest.png"
-    plt.savefig(grafana_output, bbox_inches='tight', dpi=300)
-    plt.close()
-
+        plt.close()
 
 
 ### DQM PLOTS ###
@@ -446,7 +448,7 @@ def plot_sum_waveform(waveform, units='ADC16', i_evt=0, output_name='sum_wavefor
     plt.tight_layout()
     plt.show()
     # save as pdf
-    output_pdf = f"{args.output_dir}/{output_name}"
+    output_pdf = f"{args.tmp_dir}/{output_name}"
     with PdfPages(output_pdf) as pdf:
         pdf.savefig()
         plt.close()
@@ -525,7 +527,7 @@ def plot_noises(prev_noises, noises, i_evt, mask_inactive=True,
     plt.tight_layout()
     plt.show()
     # save as pdf
-    output_pdf = f"{args.output_dir}/{output_name}"
+    output_pdf = f"{args.tmp_dir}/{output_name}"
     with PdfPages(output_pdf) as pdf:
         pdf.savefig()
         plt.close()
@@ -599,7 +601,7 @@ def plot_baselines(prev_baselines, baselines, i_evt, mask_inactive=True,
     plt.tight_layout()
     plt.show()
     # save as pdf
-    output_pdf = f"{args.output_dir}/{output_name}"
+    output_pdf = f"{args.tmp_dir}/{output_name}"
     with PdfPages(output_pdf) as pdf:
         pdf.savefig()
         plt.close()
@@ -686,7 +688,7 @@ def plot_noise_spectra_epcb(
     plt.tight_layout()
     plt.show()
     # save as pdf
-    output_pdf = f"{args.output_dir}/{output_name}"
+    output_pdf = f"{args.tmp_dir}/{output_name}"
     with PdfPages(output_pdf) as pdf:
         pdf.savefig()
         plt.close()
@@ -748,7 +750,7 @@ def plot_noise_spectra_channels(
     plt.tight_layout()
     plt.show()
     # save as pdf
-    output_pdf = f"{args.output_dir}/{output_name}"
+    output_pdf = f"{args.tmp_dir}/{output_name}"
     with PdfPages(output_pdf) as pdf:
         pdf.savefig()
         plt.close()
@@ -826,7 +828,7 @@ def plot_clipped_fraction(prev_clipped_evts, clipped_evts, title=None,
     plt.tight_layout()
     plt.show()
     # save as pdf
-    output_pdf = f"{args.output_dir}/{output_name}"
+    output_pdf = f"{args.tmp_dir}/{output_name}"
     with PdfPages(output_pdf) as pdf:
         pdf.savefig()
         plt.close()
@@ -916,7 +918,7 @@ def plot_clipped_tpc_fraction(prev_clipped_evts, clipped_evts, max_vals, ths,
     plt.tight_layout()
     plt.show()
     # save as pdf
-    output_pdf = f"{args.output_dir}/{output_name}"
+    output_pdf = f"{args.tmp_dir}/{output_name}"
     with PdfPages(output_pdf) as pdf:
         pdf.savefig()
         plt.close()
@@ -994,7 +996,7 @@ def plot_clipped_epcb_fraction(prev_clipped_evts, clipped_evts, max_vals, ths,
     plt.tight_layout()
     plt.show()
     # save as pdf
-    output_pdf = f"{args.output_dir}/{output_name}"
+    output_pdf = f"{args.tmp_dir}/{output_name}"
     with PdfPages(output_pdf) as pdf:
         pdf.savefig()
         plt.close()
@@ -1067,7 +1069,7 @@ def plot_clipped_ch_fraction(prev_clipped_evts, clipped_evts, max_vals, ths,
     plt.tight_layout()
     plt.show()
     # save as pdf
-    output_pdf = f"{args.output_dir}/{output_name}"
+    output_pdf = f"{args.tmp_dir}/{output_name}"
     with PdfPages(output_pdf) as pdf:
         pdf.savefig()
         plt.close()
@@ -1153,7 +1155,7 @@ def plot_neg_tpc_fraction(prev_neg_evts, neg_evts, max_vals, ths,
   plt.tight_layout()
   plt.show()
   # save as pdf
-  output_pdf = f"{args.output_dir}/{output_name}"
+  output_pdf = f"{args.tmp_dir}/{output_name}"
   with PdfPages(output_pdf) as pdf:
         pdf.savefig()
         plt.close()
@@ -1231,7 +1233,7 @@ def plot_neg_epcb_fraction(prev_neg_evts, neg_evts, max_vals, ths,
   plt.tight_layout()
   plt.show()
   # save as pdf
-  output_pdf = f"{args.output_dir}/{output_name}"
+  output_pdf = f"{args.tmp_dir}/{output_name}"
   with PdfPages(output_pdf) as pdf:
       pdf.savefig()
       plt.close()
@@ -1397,7 +1399,13 @@ def main():
     except Exception as e:
         print(f"Error creating output directory {args.output_dir}: {e}")
         raise
-        
+    
+    try:
+        os.makedirs(args.tmp_dir, exist_ok=True)
+        print(f"Temporary directory is ready: {args.output_dir}")
+    except Exception as e:
+        print(f"Error creating temporary directory {args.output_dir}: {e}")
+        raise
     # files
     files_arr = np.arange(args.start_run, args.start_run +args.nfiles, 1)
     file_time = start_time
@@ -1445,14 +1453,17 @@ def main():
         # define datasets for beam trigger type
         beam_wvfms, beam_noises, beam_baselines, beam_max_values, beam_clipped, beam_negs = get_waveform_info(
             file["light/wvfm/data"]['samples'][:args.max_evts], args.units, mask = np.where(file["light/events/data"]['trig_type'][:args.max_evts] == 1)[0], ths=ptps)
-        print("    Number of beam events:", beam_wvfms.shape[0])
+        nbeam_evts = beam_wvfms.shape[0]
+        print("    Number of beam events:", nbeam_evts)
         # define datasets for self-trigger type
         strig_wvfms, strig_noises, strig_baselines, strig_max_values, strig_clipped, strig_negs = get_waveform_info(
             file["light/wvfm/data"]['samples'][:args.max_evts], args.units, mask = np.where(file["light/events/data"]['trig_type'][:args.max_evts] == 0)[0], ths=ptps)
-        print("    Number of self-trigger events:", strig_wvfms.shape[0])
+        nstrig_evts = strig_wvfms.shape[0]
+        print("    Number of self-trigger events:", nstrig_evts)
         # define datasets for all events
         wvfms, noises, baselines, max_values, clipped, negs = get_waveform_info(file["light/wvfm/data"]['samples'][:args.max_evts], args.units, ths=ptps)
-        print("    Total number of events:", wvfms.shape[0])
+        nevts = wvfms.shape[0]
+        print("    Total number of events:", nevts)
         print(f"Waveform info extracted for file: {filename}")
 
         ### DQM PLOTS ###
@@ -1485,7 +1496,7 @@ def main():
             spur = noise_spectrum[:, :, roi_bin]
             # convert to string and replace '.' with '_'
             roi_mhz = str(rois_mhz[i_roi]).replace('.', '_')
-            save_spectra_as_json(
+            if args.write_json_blobs: save_spectra_as_json(
                 i_file, spur, args.output_dir,
                 f'noise_spectra_roi_{roi_mhz}mhz.json'
             )
@@ -1510,7 +1521,7 @@ def main():
             strig_noises, i_evt=np.arange(0, strig_baselines.shape[0], 1),
             mask_inactive=False, output_name='plot_noises.pdf'
         )
-        save_as_json(i_file, noise_c, noise_l, noise_u,
+        if args.write_json_blobs: save_as_json(i_file, noise_c, noise_l, noise_u,
                      args.output_dir, 'noises.json')
 
         # Plot baselines
@@ -1521,7 +1532,7 @@ def main():
             strig_baselines, i_evt=np.arange(0, strig_baselines.shape[0], 1),
             mask_inactive=False, output_name='plot_baselines.pdf'
         )
-        save_as_json(i_file, bline_c, bline_l, bline_u,
+        if args.write_json_blobs: save_as_json(i_file, bline_c, bline_l, bline_u,
                      args.output_dir, 'baselines.json')
         print(f"Noise and baselines plotted for file: {filename}")
 
@@ -1535,9 +1546,9 @@ def main():
         ) if prev_beam_clipped_inputs is not None else None
         clip_pass, clip_tot = plot_clipped_fraction(
             prev_beam_clipped, beam_clipped,
-            title='Beam trigger', output_name='plot_clipped_beam.pdf'
+            title='Beam trigger', output_name='plot_clipped1_beam.pdf'
         )
-        save_eff_as_json(i_file, clip_pass, clip_tot,
+        if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
                         args.output_dir, 'clipped_total_beam.json')
         # self-trigger
         prev_strig_clipped_inputs = read_eff_from_json(
@@ -1548,9 +1559,9 @@ def main():
         ) if prev_strig_clipped_inputs is not None else None
         clip_pass, clip_tot  = plot_clipped_fraction(
             prev_strig_clipped, strig_clipped,
-            title='Self-trigger', output_name='plot_clipped_total.pdf'
+            title='Self-trigger', output_name='plot_clipped2_self.pdf'
         )
-        save_eff_as_json(i_file, clip_pass, clip_tot,
+        if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
                         args.output_dir, 'clipped_total_self.json')
         print(f"Clipped fraction plotted for file: {filename}")
 
@@ -1564,9 +1575,9 @@ def main():
         ) if prev_beam_clipped_inputs is not None else None
         clip_pass, clip_tot = plot_clipped_tpc_fraction(
             prev_beam_clipped, beam_clipped, beam_max_values, ptps,
-            title='Beam trigger', output_name='plot_clipped_beam_tpc.pdf'
+            title='Beam trigger', output_name='plot_clipped3_beam_tpc.pdf'
         )
-        save_eff_as_json(i_file, clip_pass, clip_tot,
+        if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
                         args.output_dir, 'clipped_tpc_beam.json')
         # self-trigger
         prev_strig_clipped_inputs = read_eff_from_json(
@@ -1577,9 +1588,9 @@ def main():
         ) if prev_strig_clipped_inputs is not None else None
         clip_pass, clip_tot = plot_clipped_tpc_fraction(
             prev_strig_clipped, strig_clipped, strig_max_values, ptps,
-            title='Self-trigger', output_name='plot_clipped_self_tpc.pdf'
+            title='Self-trigger', output_name='plot_clipped4_self_tpc.pdf'
         )
-        save_eff_as_json(i_file, clip_pass, clip_tot,
+        if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
                         args.output_dir, 'clipped_tpc_self.json')
         print(f"Clipped TPC fraction plotted for file: {filename}")
 
@@ -1593,9 +1604,9 @@ def main():
         ) if prev_beam_clipped_inputs is not None else None
         clip_pass, clip_tot = plot_clipped_epcb_fraction(
             prev_beam_clipped, beam_clipped, beam_max_values, ptps,
-            "Beam trigger", output_name='plot_clipped_beam_epcb.pdf'
+            "Beam trigger", output_name='plot_clipped5_beam_epcb.pdf'
         )
-        save_eff_as_json(i_file, clip_pass, clip_tot,
+        if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
                         args.output_dir, 'clipped_epcb_beam.json')
         # self-trigger
         prev_strig_clipped_inputs = read_eff_from_json(
@@ -1606,9 +1617,9 @@ def main():
         ) if prev_strig_clipped_inputs is not None else None
         clip_pass, clip_tot = plot_clipped_epcb_fraction(
             prev_strig_clipped, strig_clipped, strig_max_values, ptps,
-            "Self-trigger", output_name='plot_clipped_self_epcb.pdf'
+            "Self-trigger", output_name='plot_clipped6_self_epcb.pdf'
         )
-        save_eff_as_json(i_file, clip_pass, clip_tot,
+        if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
                         args.output_dir, 'clipped_epcb_self.json')
         print(f"Clipped EPCB fraction plotted for file: {filename}")
 
@@ -1622,9 +1633,9 @@ def main():
         ) if prev_beam_clipped_inputs is not None else None
         clip_pass, clip_tot = plot_clipped_ch_fraction(
             prev_beam_clipped, beam_clipped, beam_max_values, ptps,
-            "Beam trigger", output_name='plot_cliped_ch_beam.pdf'
+            "Beam trigger", output_name='plot_clipped7_ch_beam.pdf'
         )
-        save_eff_as_json(i_file, clip_pass, clip_tot,
+        if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
                         args.output_dir, 'clipped_ch_beam.json')
         # self-trigger
         prev_strig_clipped_inputs = read_eff_from_json(
@@ -1635,9 +1646,9 @@ def main():
         ) if prev_strig_clipped_inputs is not None else None
         clip_pass, clip_tot = plot_clipped_ch_fraction(
             prev_strig_clipped, strig_clipped, strig_max_values, ptps,
-            "Self-trigger Trigger", output_name='plot_clipped_ch_self.pdf'
+            "Self-trigger Trigger", output_name='plot_clipped8_ch_self.pdf'
         )
-        save_eff_as_json(i_file, clip_pass, clip_tot,
+        if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
                         args.output_dir, 'clipped_ch_self.json')
         print(f"Clipped channel fraction plotted for file: {filename}")
 
@@ -1651,9 +1662,9 @@ def main():
         ) if prev_beam_negs_inputs is not None else None
         negs_pass, negs_tot = plot_neg_tpc_fraction(
             prev_beam_negs, beam_negs, beam_max_values, ptps,
-            "Beam trigger", "plot_negatives_beam_tpc.pdf"
+            "Beam trigger", "plot_negatives1_beam_tpc.pdf"
         )
-        save_eff_as_json(i_file, negs_pass, negs_tot,
+        if args.write_json_blobs: save_eff_as_json(i_file, negs_pass, negs_tot,
                         args.output_dir, 'negatives_tpc_beam.json')
         # self-trigger
         prev_strig_negs_inputs = read_eff_from_json(
@@ -1664,9 +1675,9 @@ def main():
         ) if prev_strig_negs_inputs is not None else None
         negs_pass, negs_tot = plot_neg_tpc_fraction(
             prev_strig_negs, strig_negs, strig_max_values, ptps,
-            "Self-trigger", "plot_negatives_self_tpc.pdf"
+            "Self-trigger", "plot_negatives2_self_tpc.pdf"
         )
-        save_eff_as_json(i_file, negs_pass, negs_tot,
+        if args.write_json_blobs: save_eff_as_json(i_file, negs_pass, negs_tot,
                         args.output_dir, 'negatives_tpc_self.json')
         print(f"Negative spike TPC fraction plotted for file: {filename}")
 
@@ -1681,9 +1692,9 @@ def main():
         ) if prev_beam_negs_inputs is not None else None
         negs_pass, negs_tot = plot_neg_epcb_fraction(
             prev_beam_negs, beam_negs, beam_max_values, ptps,
-            "Beam trigger", "plot_negatives_beam_epcb.pdf"
+            "Beam trigger", "plot_negatives3_beam_epcb.pdf"
         )
-        save_eff_as_json(i_file, negs_pass, negs_tot,
+        if args.write_json_blobs: save_eff_as_json(i_file, negs_pass, negs_tot,
                         args.output_dir, 'negatives_epcb_beam.json')
         # self-trigger
         prev_strig_negs_inputs = read_eff_from_json(
@@ -1694,9 +1705,9 @@ def main():
         ) if prev_strig_negs_inputs is not None else None
         negs_pass, negs_tot = plot_neg_epcb_fraction(
             prev_strig_negs, strig_negs, strig_max_values, ptps,
-            "Self-trigger ", "plot_negatives_self_epcb.pdf"
+            "Self-trigger ", "plot_negatives4_self_epcb.pdf"
         )
-        save_eff_as_json(i_file, negs_pass, negs_tot,
+        if args.write_json_blobs: save_eff_as_json(i_file, negs_pass, negs_tot,
                         args.output_dir, 'negatives_epcb_self.json')
         print(f"Negative spike EPCB fraction plotted for file: {filename}")
 
@@ -1708,7 +1719,7 @@ def main():
         )
         # plotting flatlined channels
         plot_flatline_mask(
-            flatlined, cs, output_name='grafana_plot_0.pdf',
+            flatlined, cs, output_name=f'flatline_{args.start_run}.pdf',
             times = (start_central, end_central)
         )
         # checking for baseline fluctuations
@@ -1717,7 +1728,7 @@ def main():
         )
         # plotting baseline fluctuations
         plot_baseline_mask(
-            baselined, cs, output_name='grafana_plot_1.pdf',
+            baselined, cs, output_name=f'baseline_{args.start_run}.pdf',
             times = (start_central, end_central)
         )
 
@@ -1756,7 +1767,7 @@ def main():
             f"--max_evts {args.max_evts}",
             f"--powspec_nevts {args.powspec_nevts}"
         ]
-        args_pdf = os.path.join(args.output_dir, f"args_list_{i_file}.pdf")
+        args_pdf = os.path.join(args.tmp_dir, f"args_list_{args.start_run}.pdf")
         with PdfPages(args_pdf) as pdf:
             fig, ax = plt.subplots(figsize=(8.5, 6))
             ax.axis('off')
@@ -1769,31 +1780,29 @@ def main():
         merger_grafana.append(args_pdf)
         os.remove(args_pdf)
 
-        # Append all plot PDFs to the merger
-        plotnames = [f'plot_{i}.pdf' for i in range(0, 16)]
-        for plotname in plotnames:
-            plot_path = f"{args.output_dir}{plotname}"
+        plot_files = sorted(glob.glob(os.path.join(args.tmp_dir, "plot*.pdf")))
+
+        for plot_path in plot_files:
             if os.path.exists(plot_path):
                 merger.append(plot_path)
                 os.remove(plot_path)
 
-        merged_pdf_path = f"{args.output_dir}merged_plots_{i_file}.pdf"
+        merged_pdf_path = os.path.join(args.output_dir, f"merged_plots_{args.start_run}.pdf")
         merger.write(merged_pdf_path)
         merger.close()
-        print(f"Merged plots saved to: {merged_pdf_path}")
 
-
-        # Append all Grafana plot PDFs to the merger
-        grafana_plotnames = [f'grafana_plot_{i}.pdf' for i in range(0, 2)]
-        for grafana_plotname in grafana_plotnames:
-            grafana_plot_path = f"{args.output_dir}{grafana_plotname}"
-            if os.path.exists(grafana_plot_path):
-                merger_grafana.append(grafana_plot_path)
-                os.remove(grafana_plot_path)
-        merged_grafana_pdf_path = f"{args.output_dir}merged_grafana_plots_{i_file}.pdf"
-        merger_grafana.write(merged_grafana_pdf_path)
-        merger_grafana.close()
-        print(f"Merged Grafana plots saved to: {merged_grafana_pdf_path}")
+        if args.merge_grafana_plots:
+            # Append all Grafana plot PDFs to the merger
+            grafana_plotnames = [f'grafana_plot_{i}.pdf' for i in range(0, 2)]
+            for grafana_plotname in grafana_plotnames:
+                grafana_plot_path = f"{args.output_dir}{grafana_plotname}"
+                if os.path.exists(grafana_plot_path):
+                    merger_grafana.append(grafana_plot_path)
+                    os.remove(grafana_plot_path)
+            merged_grafana_pdf_path = f"{args.output_dir}merged_grafana_plots_{args.start_run}.pdf"
+            merger_grafana.write(merged_grafana_pdf_path)
+            merger_grafana.close()
+            print(f"Merged Grafana plots saved to: {merged_grafana_pdf_path}")
 
         # timing for file processing
         print(f"Processing completed for file: {filename}")
