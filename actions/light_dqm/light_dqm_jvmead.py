@@ -15,11 +15,12 @@
     # example usage:
 
 python light_dqm.py
-                       --input_path /global/cfs/cdirs/dune/www/data/2x2/nearline/flowed_light/data_bin004/
+                       --input_path /global/cfs/cdirs/dune/www/data/2x2/nearline_run2/flowed_light/warm_commission/
+                       --file_syntax mpd_run_dbg_rctl_
                        --output_dir dqm_plots/
                        --units ADC16
                        --ptps16bit 150
-                       --start_file 0
+                       --start_run 0
                        --nfiles 10
                        --ncomp 5
                        --powspec_nevts 200
@@ -53,10 +54,11 @@ except ImportError:
 def parse_args():
     parser = argparse.ArgumentParser(description="Process and plot DUNE light file data.")
     parser.add_argument('--input_path', type=str, default='.', help='Path to input file')
+    parser.add_argument('--file_syntax', type=str, default='.', help='File name syntax')
     parser.add_argument('--output_dir', type=str, default='.', help='Directory to save output plots')
     parser.add_argument('--units', type=str, default='ADC16', choices=['ADC16', 'ADC14', 'V'], help='Units for waveform')
     parser.add_argument('--ptps16bit', type=int, default=150, help='Peak-to-peak threshold for 16-bit ADC')
-    parser.add_argument('--start_file', type=int, default=0, help='Starting file index for processing')
+    parser.add_argument('--start_run', type=int, default=0, help='Start run for processing')
     parser.add_argument('--nfiles', type=int, default=1, help='Number of files to process')
     parser.add_argument('--ncomp', type=int, default=-1, help='Number of previous files to compare')
     parser.add_argument('--powspec_nevts', type=int, default=100, help='Number of events to process per file for noise spectra')
@@ -1335,17 +1337,28 @@ def main():
     start_time = time.time()
 
     # files
-    files_arr = np.arange(args.start_file, args.start_file +args.nfiles, 1)
+    files_arr = np.arange(args.start_run, args.start_run +args.nfiles, 1)
 
     file_time = start_time
     for i_file in files_arr:
 
         # Construct the filename based on the input path and file index
-        filename = f'{args.input_path}mpd_run_hvramp_rctl_105_p{i_file}.FLOW.hdf5'
+        filename = f'{args.input_path}{args.file_syntax}{i_file}.FLOW.hdf5'
         print(f"Processing file: {filename} with units: {args.units}")
+
+        # Skip if file does not exist
+        if not os.path.exists(filename):
+            print(f"File not found, skipping: {filename}")
+            continue
+    
         ptps = get_ptps(args.units)
-        file = h5py.File(filename, 'r')
-        print(f"File opened successfully: {filename}")
+    
+        try:
+            file = h5py.File(filename, 'r')
+            print(f"File opened successfully: {filename}")
+        except Exception as e:
+            print(f"Error opening {filename}: {e}")
+            continue
 
         # Get start and end timestamps in ms
         start_timestamp = file["light/events/data"][0]['utime_ms'][0]
