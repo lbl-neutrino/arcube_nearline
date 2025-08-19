@@ -17,6 +17,7 @@
 python light_dqm.py
                        --input_path /global/cfs/cdirs/dune/www/data/2x2/nearline_run2/flowed_light/warm_commission/
                        --file_syntax mpd_run_dbg_rctl_
+                       --channel_status_file channel_status.csv
                        --output_dir dqm_plots/
                        --units ADC16
                        --ptps16bit 150
@@ -55,6 +56,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Process and plot DUNE light file data.")
     parser.add_argument('--input_path', type=str, default='.', help='Path to input file')
     parser.add_argument('--file_syntax', type=str, default='.', help='File name syntax')
+    parser.add_argument('--channel_status_file', type=str, default='.', help='Channel status file')
     parser.add_argument('--output_dir', type=str, default='.', help='Directory to save output plots')
     parser.add_argument('--units', type=str, default='ADC16', choices=['ADC16', 'ADC14', 'V'], help='Units for waveform')
     parser.add_argument('--ptps16bit', type=int, default=150, help='Peak-to-peak threshold for 16-bit ADC')
@@ -114,10 +116,22 @@ channels = []
 for group_start in range(0, 64, 16):
     channels.extend(range(group_start + 4, min(group_start + 16, 64)))
 
+
 # Load channel status (0 = good, nonzero = bad)
-channel_status_csv = 'channel_status.csv'
-cs_df = pd.read_csv(channel_status_csv, header=None)
-cs = cs_df.to_numpy()
+channel_status_csv = args.channel_status_file
+cs = None  # default if load fails
+
+try:
+    cs_df = pd.read_csv(channel_status_csv, header=None)
+    cs = cs_df.to_numpy()
+    print(f"Channel status loaded successfully from: {channel_status_csv}")
+except FileNotFoundError:
+    print(f"Channel status file not found, skipping: {channel_status_csv}")
+except pd.errors.EmptyDataError:
+    print(f"Channel status file is empty: {channel_status_csv}")
+except Exception as e:
+    print(f"Error loading channel status from {channel_status_csv}: {e}")
+
 
 # ----------------------------- #
 #         Core Functions        #
@@ -456,6 +470,11 @@ def plot_noises(prev_noises, noises, i_evt, mask_inactive=True,
             mask = np.isin(channels_idx, channels)
         else:
             mask = np.ones_like(channels_idx, dtype=bool)
+            # Default values
+        median = np.zeros(noises.shape[2])
+        lower  = np.zeros(noises.shape[2])
+        upper  = np.zeros(noises.shape[2])
+
         if isinstance(i_evt, np.ndarray) and len(i_evt) > 1:
             # Compute 68% central quantile range (16th and 84th percentiles)
             q16 = np.percentile(noises[i_evt, i, :], 16, axis=0)
@@ -1237,31 +1256,47 @@ def save_as_json(file_index, data_c, data_l, data_u, output_dir, filename):
     with open(file_path, mode) as f:
         json.dump(data, f)
         f.write('\n')
-
 def read_from_json(file_indices, output_dir, filename):
     """
     Read data from JSON file, loop over file indices, add in quadrature.
-    If no matching entries are found, return None.
+    If the file is missing, unreadable, or no matching entries are found, return None.
     """
-    data_c = []
-    data_l = []
-    data_u = []
-    with open(output_dir + filename, 'r') as f:
-        for line in f:
-            entry = json.loads(line)
-            if entry['file_index'] in file_indices:
-                data_c.append(entry['data_c'])
-                data_l.append(entry['data_l'])
-                data_u.append(entry['data_u'])
+    filepath = os.path.join(output_dir, filename)
+
+    # Check if file exists
+    if not os.path.exists(filepath):
+        print(f"JSON file not found: {filepath}")
+        return None
+
+    data_c, data_l, data_u = [], [], []
+
+    try:
+        with open(filepath, 'r') as f:
+            for line in f:
+                try:
+                    entry = json.loads(line)
+                    if entry.get('file_index') in file_indices:
+                        data_c.append(entry['data_c'])
+                        data_l.append(entry['data_l'])
+                        data_u.append(entry['data_u'])
+                except json.JSONDecodeError:
+                    print(f"Skipping malformed line in {filepath}: {line.strip()}")
+    except Exception as e:
+        print(f"Error reading {filepath}: {e}")
+        return None
+
     if not data_c:
         return None
+
     data_c = np.array(data_c)
     data_l = np.array(data_l)
     data_u = np.array(data_u)
-    # sum in quadrature
+
+    # Combine results: mean for central, quadrature sum for uncertainties
     data_c = np.mean(data_c, axis=0)
     data_l = np.sqrt(np.sum(data_l**2, axis=0))
     data_u = np.sqrt(np.sum(data_u**2, axis=0))
+
     return data_c, data_l, data_u
 
 def save_spectra_as_json(file_index, spectra_roi, output_dir, filename):
@@ -1299,23 +1334,41 @@ def save_eff_as_json(file_index, passed, totals, output_dir, filename):
 def read_eff_from_json(file_indices, output_dir, filename):
     """
     Read efficiency data from JSON file, loop over file indices,
-    combine the passes and totals
+    combine the passes and totals.
+    If the file is missing, unreadable, or no matching entries are found,
+    return None.
     """
-    passed = []
-    totals = []
-    with open(output_dir+filename, 'r') as f:
-        for line in f:
-            entry = json.loads(line)
-            if entry['file_index'] in file_indices:
-                passed.append(entry['pass'])
-                totals.append(entry['totals'])
-        f.close()
-    # sum
+    filepath = os.path.join(output_dir, filename)
+
+    # Check if file exists
+    if not os.path.exists(filepath):
+        print(f"Efficiency JSON file not found: {filepath}")
+        return None
+
+    passed, totals = [], []
+
+    try:
+        with open(filepath, 'r') as f:
+            for line in f:
+                try:
+                    entry = json.loads(line)
+                    if entry.get('file_index') in file_indices:
+                        passed.append(entry['pass'])
+                        totals.append(entry['totals'])
+                except json.JSONDecodeError:
+                    print(f"Skipping malformed line in {filepath}: {line.strip()}")
+    except Exception as e:
+        print(f"Error reading {filepath}: {e}")
+        return None
+
+    if not passed or not totals:
+        return None
+
+    # Sum across all matching entries
     passed = np.sum(np.array(passed), axis=0)
     totals = np.sum(np.array(totals), axis=0)
 
     return passed, totals
-
 
 # ----------------------------- #
 #             Main              #
@@ -1336,9 +1389,17 @@ def main():
     # start timer
     start_time = time.time()
 
+    # Ensure output directory exists
+
+    try:
+        os.makedirs(args.output_dir, exist_ok=True)
+        print(f"Output directory is ready: {args.output_dir}")
+    except Exception as e:
+        print(f"Error creating output directory {args.output_dir}: {e}")
+        raise
+        
     # files
     files_arr = np.arange(args.start_run, args.start_run +args.nfiles, 1)
-
     file_time = start_time
     for i_file in files_arr:
 
@@ -1402,7 +1463,7 @@ def main():
         evts = np.array([max_integral_evt])
         for evt in evts:
             plot_sum_waveform(wvfms - baselines[:, :, :, np.newaxis],
-                              args.units, i_evt=evt, output_name='plot_0.pdf')
+                              args.units, i_evt=evt, output_name='plot_sumwvfm.pdf')
         print(f"Sum waveform plotted for file: {filename}")
 
         # noise spectra
@@ -1432,7 +1493,7 @@ def main():
         plot_noise_spectra_epcb(
             freq_bins, noise_spectrum, None, None,
             skip_bad_channels=True, nevts=args.powspec_nevts,
-            output_name='plot_1.pdf',
+            output_name='plot_powspec.pdf',
         )
         #plot_noise_spectra_channels(
         #    freq_bins, noise_spectrum, None, None,
@@ -1447,7 +1508,7 @@ def main():
         ) if i_file > 0 else None
         noise_c, noise_l, noise_u = plot_noises(prev_noises,
             strig_noises, i_evt=np.arange(0, strig_baselines.shape[0], 1),
-            mask_inactive=False, output_name='plot_2.pdf'
+            mask_inactive=False, output_name='plot_noises.pdf'
         )
         save_as_json(i_file, noise_c, noise_l, noise_u,
                      args.output_dir, 'noises.json')
@@ -1458,7 +1519,7 @@ def main():
         ) if i_file > 0 else None
         bline_c, bline_l, bline_u = plot_baselines(prev_baselines,
             strig_baselines, i_evt=np.arange(0, strig_baselines.shape[0], 1),
-            mask_inactive=False, output_name='plot_3.pdf'
+            mask_inactive=False, output_name='plot_baselines.pdf'
         )
         save_as_json(i_file, bline_c, bline_l, bline_u,
                      args.output_dir, 'baselines.json')
@@ -1474,7 +1535,7 @@ def main():
         ) if prev_beam_clipped_inputs is not None else None
         clip_pass, clip_tot = plot_clipped_fraction(
             prev_beam_clipped, beam_clipped,
-            title='Beam trigger', output_name='plot_4.pdf'
+            title='Beam trigger', output_name='plot_clipped_beam.pdf'
         )
         save_eff_as_json(i_file, clip_pass, clip_tot,
                         args.output_dir, 'clipped_total_beam.json')
@@ -1487,7 +1548,7 @@ def main():
         ) if prev_strig_clipped_inputs is not None else None
         clip_pass, clip_tot  = plot_clipped_fraction(
             prev_strig_clipped, strig_clipped,
-            title='Self-trigger', output_name='plot_5.pdf'
+            title='Self-trigger', output_name='plot_clipped_total.pdf'
         )
         save_eff_as_json(i_file, clip_pass, clip_tot,
                         args.output_dir, 'clipped_total_self.json')
@@ -1503,7 +1564,7 @@ def main():
         ) if prev_beam_clipped_inputs is not None else None
         clip_pass, clip_tot = plot_clipped_tpc_fraction(
             prev_beam_clipped, beam_clipped, beam_max_values, ptps,
-            title='Beam trigger', output_name='plot_6.pdf'
+            title='Beam trigger', output_name='plot_clipped_beam_tpc.pdf'
         )
         save_eff_as_json(i_file, clip_pass, clip_tot,
                         args.output_dir, 'clipped_tpc_beam.json')
@@ -1516,7 +1577,7 @@ def main():
         ) if prev_strig_clipped_inputs is not None else None
         clip_pass, clip_tot = plot_clipped_tpc_fraction(
             prev_strig_clipped, strig_clipped, strig_max_values, ptps,
-            title='Self-trigger', output_name='plot_7.pdf'
+            title='Self-trigger', output_name='plot_clipped_self_tpc.pdf'
         )
         save_eff_as_json(i_file, clip_pass, clip_tot,
                         args.output_dir, 'clipped_tpc_self.json')
@@ -1532,7 +1593,7 @@ def main():
         ) if prev_beam_clipped_inputs is not None else None
         clip_pass, clip_tot = plot_clipped_epcb_fraction(
             prev_beam_clipped, beam_clipped, beam_max_values, ptps,
-            "Beam trigger", output_name='plot_8.pdf'
+            "Beam trigger", output_name='plot_clipped_beam_epcb.pdf'
         )
         save_eff_as_json(i_file, clip_pass, clip_tot,
                         args.output_dir, 'clipped_epcb_beam.json')
@@ -1545,7 +1606,7 @@ def main():
         ) if prev_strig_clipped_inputs is not None else None
         clip_pass, clip_tot = plot_clipped_epcb_fraction(
             prev_strig_clipped, strig_clipped, strig_max_values, ptps,
-            "Self-trigger", output_name='plot_9.pdf'
+            "Self-trigger", output_name='plot_clipped_self_epcb.pdf'
         )
         save_eff_as_json(i_file, clip_pass, clip_tot,
                         args.output_dir, 'clipped_epcb_self.json')
@@ -1561,7 +1622,7 @@ def main():
         ) if prev_beam_clipped_inputs is not None else None
         clip_pass, clip_tot = plot_clipped_ch_fraction(
             prev_beam_clipped, beam_clipped, beam_max_values, ptps,
-            "Beam trigger", output_name='plot_10.pdf'
+            "Beam trigger", output_name='plot_cliped_ch_beam.pdf'
         )
         save_eff_as_json(i_file, clip_pass, clip_tot,
                         args.output_dir, 'clipped_ch_beam.json')
@@ -1574,7 +1635,7 @@ def main():
         ) if prev_strig_clipped_inputs is not None else None
         clip_pass, clip_tot = plot_clipped_ch_fraction(
             prev_strig_clipped, strig_clipped, strig_max_values, ptps,
-            "Self-trigger Trigger", output_name='plot_11.pdf'
+            "Self-trigger Trigger", output_name='plot_clipped_ch_self.pdf'
         )
         save_eff_as_json(i_file, clip_pass, clip_tot,
                         args.output_dir, 'clipped_ch_self.json')
@@ -1590,7 +1651,7 @@ def main():
         ) if prev_beam_negs_inputs is not None else None
         negs_pass, negs_tot = plot_neg_tpc_fraction(
             prev_beam_negs, beam_negs, beam_max_values, ptps,
-            "Beam trigger", "plot_12.pdf"
+            "Beam trigger", "plot_negatives_beam_tpc.pdf"
         )
         save_eff_as_json(i_file, negs_pass, negs_tot,
                         args.output_dir, 'negatives_tpc_beam.json')
@@ -1603,7 +1664,7 @@ def main():
         ) if prev_strig_negs_inputs is not None else None
         negs_pass, negs_tot = plot_neg_tpc_fraction(
             prev_strig_negs, strig_negs, strig_max_values, ptps,
-            "Self-trigger", "plot_13.pdf"
+            "Self-trigger", "plot_negatives_self_tpc.pdf"
         )
         save_eff_as_json(i_file, negs_pass, negs_tot,
                         args.output_dir, 'negatives_tpc_self.json')
@@ -1620,7 +1681,7 @@ def main():
         ) if prev_beam_negs_inputs is not None else None
         negs_pass, negs_tot = plot_neg_epcb_fraction(
             prev_beam_negs, beam_negs, beam_max_values, ptps,
-            "Beam trigger", "plot_14.pdf"
+            "Beam trigger", "plot_negatives_beam_epcb.pdf"
         )
         save_eff_as_json(i_file, negs_pass, negs_tot,
                         args.output_dir, 'negatives_epcb_beam.json')
@@ -1633,7 +1694,7 @@ def main():
         ) if prev_strig_negs_inputs is not None else None
         negs_pass, negs_tot = plot_neg_epcb_fraction(
             prev_strig_negs, strig_negs, strig_max_values, ptps,
-            "Self-trigger ", "plot_15.pdf"
+            "Self-trigger ", "plot_negatives_self_epcb.pdf"
         )
         save_eff_as_json(i_file, negs_pass, negs_tot,
                         args.output_dir, 'negatives_epcb_self.json')
@@ -1685,7 +1746,7 @@ def main():
             f"DQM runtime          (CT): {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time() - 21600))}",
             "\n",
             f"--nfiles {args.nfiles}",
-            f"--start_file {args.start_file}",
+            f"--start_run {args.start_run}",
             f"--ncomp {args.ncomp}",
             "\n",
             f"--output_dir {args.output_dir}",
