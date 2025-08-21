@@ -29,6 +29,8 @@ python light_dqm.py
                        --max_evts 500
                        --write_json_blobs False
                        --merge_grafana_plots False
+                       --plot_clipped False
+                       --plot_negatives False
 '''
 ############################################
 
@@ -72,6 +74,8 @@ def parse_args():
     parser.add_argument('--max_evts', type=int, default=1000, help='Maximum number of events to process for the whole file')
     parser.add_argument('--write_json_blobs', type=bool, default=False, help='Saves all data to json blobs if true')
     parser.add_argument('--merge_grafana_plots', type=bool, default=False, help='Merge baselines and flatlines grafana plots')
+    parser.add_argument('--plot_clipped', type=bool, default=False, help='Plot clipped waveforms')
+    parser.add_argument('--plot_negatives', type=bool, default=False, help='Plot negatives')
     return parser.parse_args()
 
 # ----------------------------- #
@@ -1536,180 +1540,182 @@ def main():
                      args.output_dir, 'baselines.json')
         print(f"Noise and baselines plotted for file: {filename}")
 
-        # Plot clipped fraction for total
-        # beam events
-        prev_beam_clipped_inputs = read_eff_from_json(
-            ncomps, args.output_dir, 'clipped_total_beam.json'
-        ) if i_file > 0 else None
-        prev_beam_clipped = clopper_pearson(
-            prev_beam_clipped_inputs[0], prev_beam_clipped_inputs[1]
-        ) if prev_beam_clipped_inputs is not None else None
-        clip_pass, clip_tot = plot_clipped_fraction(
-            prev_beam_clipped, beam_clipped,
-            title='Beam trigger', output_name='plot_clipped1_beam.pdf'
-        )
-        if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
-                        args.output_dir, 'clipped_total_beam.json')
-        # self-trigger
-        prev_strig_clipped_inputs = read_eff_from_json(
-            ncomps, args.output_dir, 'clipped_total_self.json'
-        ) if i_file > 0 else None
-        prev_strig_clipped = clopper_pearson(
-            prev_strig_clipped_inputs[0], prev_strig_clipped_inputs[1]
-        ) if prev_strig_clipped_inputs is not None else None
-        clip_pass, clip_tot  = plot_clipped_fraction(
-            prev_strig_clipped, strig_clipped,
-            title='Self-trigger', output_name='plot_clipped2_self.pdf'
-        )
-        if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
-                        args.output_dir, 'clipped_total_self.json')
-        print(f"Clipped fraction plotted for file: {filename}")
+        if args.plot_clipped:
+            # Plot clipped fraction for total
+            # beam events
+            prev_beam_clipped_inputs = read_eff_from_json(
+                ncomps, args.output_dir, 'clipped_total_beam.json'
+            ) if i_file > 0 else None
+            prev_beam_clipped = clopper_pearson(
+                prev_beam_clipped_inputs[0], prev_beam_clipped_inputs[1]
+            ) if prev_beam_clipped_inputs is not None else None
+            clip_pass, clip_tot = plot_clipped_fraction(
+                prev_beam_clipped, beam_clipped,
+                title='Beam trigger', output_name='plot_clipped1_beam.pdf'
+            )
+            if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
+                            args.output_dir, 'clipped_total_beam.json')
+            # self-trigger
+            prev_strig_clipped_inputs = read_eff_from_json(
+                ncomps, args.output_dir, 'clipped_total_self.json'
+            ) if i_file > 0 else None
+            prev_strig_clipped = clopper_pearson(
+                prev_strig_clipped_inputs[0], prev_strig_clipped_inputs[1]
+            ) if prev_strig_clipped_inputs is not None else None
+            clip_pass, clip_tot  = plot_clipped_fraction(
+                prev_strig_clipped, strig_clipped,
+                title='Self-trigger', output_name='plot_clipped2_self.pdf'
+            )
+            if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
+                            args.output_dir, 'clipped_total_self.json')
+            print(f"Clipped fraction plotted for file: {filename}")
+    
+            # Plot clipped fraction for events with light on the channels' TPC
+            # beam trigger
+            prev_beam_clipped_inputs = read_eff_from_json(
+                ncomps, args.output_dir, 'clipped_tpc_beam.json'
+            ) if i_file > 0 else None
+            prev_beam_clipped = clopper_pearson(
+                prev_beam_clipped_inputs[0], prev_beam_clipped_inputs[1]
+            ) if prev_beam_clipped_inputs is not None else None
+            clip_pass, clip_tot = plot_clipped_tpc_fraction(
+                prev_beam_clipped, beam_clipped, beam_max_values, ptps,
+                title='Beam trigger', output_name='plot_clipped3_beam_tpc.pdf'
+            )
+            if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
+                            args.output_dir, 'clipped_tpc_beam.json')
+            # self-trigger
+            prev_strig_clipped_inputs = read_eff_from_json(
+                ncomps, args.output_dir, 'clipped_tpc_self.json'
+            ) if i_file > 0 else None
+            prev_strig_clipped = clopper_pearson(
+                prev_strig_clipped_inputs[0], prev_strig_clipped_inputs[1]
+            ) if prev_strig_clipped_inputs is not None else None
+            clip_pass, clip_tot = plot_clipped_tpc_fraction(
+                prev_strig_clipped, strig_clipped, strig_max_values, ptps,
+                title='Self-trigger', output_name='plot_clipped4_self_tpc.pdf'
+            )
+            if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
+                            args.output_dir, 'clipped_tpc_self.json')
+            print(f"Clipped TPC fraction plotted for file: {filename}")
+    
+            # Plot clipped fraction for events with light on the channels' EPCB
+            # beam trigger
+            prev_beam_clipped_inputs = read_eff_from_json(
+                ncomps, args.output_dir, 'clipped_epcb_beam.json'
+            ) if i_file > 0 else None
+            prev_beam_clipped = clopper_pearson(
+                prev_beam_clipped_inputs[0], prev_beam_clipped_inputs[1]
+            ) if prev_beam_clipped_inputs is not None else None
+            clip_pass, clip_tot = plot_clipped_epcb_fraction(
+                prev_beam_clipped, beam_clipped, beam_max_values, ptps,
+                "Beam trigger", output_name='plot_clipped5_beam_epcb.pdf'
+            )
+            if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
+                            args.output_dir, 'clipped_epcb_beam.json')
+            # self-trigger
+            prev_strig_clipped_inputs = read_eff_from_json(
+                ncomps, args.output_dir, 'clipped_epcb_self.json'
+            ) if i_file > 0 else None
+            prev_strig_clipped = clopper_pearson(
+                prev_strig_clipped_inputs[0], prev_strig_clipped_inputs[1]
+            ) if prev_strig_clipped_inputs is not None else None
+            clip_pass, clip_tot = plot_clipped_epcb_fraction(
+                prev_strig_clipped, strig_clipped, strig_max_values, ptps,
+                "Self-trigger", output_name='plot_clipped6_self_epcb.pdf'
+            )
+            if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
+                            args.output_dir, 'clipped_epcb_self.json')
+            print(f"Clipped EPCB fraction plotted for file: {filename}")
+    
+            # plot clipped fraction for events with light on the channel itself
+            # beam trigger
+            prev_beam_clipped_inputs = read_eff_from_json(
+                ncomps, args.output_dir, 'clipped_ch_beam.json'
+            ) if i_file > 0 else None
+            prev_beam_clipped = clopper_pearson(
+                prev_beam_clipped_inputs[0], prev_beam_clipped_inputs[1]
+            ) if prev_beam_clipped_inputs is not None else None
+            clip_pass, clip_tot = plot_clipped_ch_fraction(
+                prev_beam_clipped, beam_clipped, beam_max_values, ptps,
+                "Beam trigger", output_name='plot_clipped7_ch_beam.pdf'
+            )
+            if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
+                            args.output_dir, 'clipped_ch_beam.json')
+            # self-trigger
+            prev_strig_clipped_inputs = read_eff_from_json(
+                ncomps, args.output_dir, 'clipped_ch_self.json'
+            ) if i_file > 0 else None
+            prev_strig_clipped = clopper_pearson(
+                prev_strig_clipped_inputs[0], prev_strig_clipped_inputs[1]
+            ) if prev_strig_clipped_inputs is not None else None
+            clip_pass, clip_tot = plot_clipped_ch_fraction(
+                prev_strig_clipped, strig_clipped, strig_max_values, ptps,
+                "Self-trigger Trigger", output_name='plot_clipped8_ch_self.pdf'
+            )
+            if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
+                            args.output_dir, 'clipped_ch_self.json')
+            print(f"Clipped channel fraction plotted for file: {filename}")
 
-        # Plot clipped fraction for events with light on the channels' TPC
-        # beam trigger
-        prev_beam_clipped_inputs = read_eff_from_json(
-            ncomps, args.output_dir, 'clipped_tpc_beam.json'
-        ) if i_file > 0 else None
-        prev_beam_clipped = clopper_pearson(
-            prev_beam_clipped_inputs[0], prev_beam_clipped_inputs[1]
-        ) if prev_beam_clipped_inputs is not None else None
-        clip_pass, clip_tot = plot_clipped_tpc_fraction(
-            prev_beam_clipped, beam_clipped, beam_max_values, ptps,
-            title='Beam trigger', output_name='plot_clipped3_beam_tpc.pdf'
-        )
-        if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
-                        args.output_dir, 'clipped_tpc_beam.json')
-        # self-trigger
-        prev_strig_clipped_inputs = read_eff_from_json(
-            ncomps, args.output_dir, 'clipped_tpc_self.json'
-        ) if i_file > 0 else None
-        prev_strig_clipped = clopper_pearson(
-            prev_strig_clipped_inputs[0], prev_strig_clipped_inputs[1]
-        ) if prev_strig_clipped_inputs is not None else None
-        clip_pass, clip_tot = plot_clipped_tpc_fraction(
-            prev_strig_clipped, strig_clipped, strig_max_values, ptps,
-            title='Self-trigger', output_name='plot_clipped4_self_tpc.pdf'
-        )
-        if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
-                        args.output_dir, 'clipped_tpc_self.json')
-        print(f"Clipped TPC fraction plotted for file: {filename}")
-
-        # Plot clipped fraction for events with light on the channels' EPCB
-        # beam trigger
-        prev_beam_clipped_inputs = read_eff_from_json(
-            ncomps, args.output_dir, 'clipped_epcb_beam.json'
-        ) if i_file > 0 else None
-        prev_beam_clipped = clopper_pearson(
-            prev_beam_clipped_inputs[0], prev_beam_clipped_inputs[1]
-        ) if prev_beam_clipped_inputs is not None else None
-        clip_pass, clip_tot = plot_clipped_epcb_fraction(
-            prev_beam_clipped, beam_clipped, beam_max_values, ptps,
-            "Beam trigger", output_name='plot_clipped5_beam_epcb.pdf'
-        )
-        if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
-                        args.output_dir, 'clipped_epcb_beam.json')
-        # self-trigger
-        prev_strig_clipped_inputs = read_eff_from_json(
-            ncomps, args.output_dir, 'clipped_epcb_self.json'
-        ) if i_file > 0 else None
-        prev_strig_clipped = clopper_pearson(
-            prev_strig_clipped_inputs[0], prev_strig_clipped_inputs[1]
-        ) if prev_strig_clipped_inputs is not None else None
-        clip_pass, clip_tot = plot_clipped_epcb_fraction(
-            prev_strig_clipped, strig_clipped, strig_max_values, ptps,
-            "Self-trigger", output_name='plot_clipped6_self_epcb.pdf'
-        )
-        if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
-                        args.output_dir, 'clipped_epcb_self.json')
-        print(f"Clipped EPCB fraction plotted for file: {filename}")
-
-        # plot clipped fraction for events with light on the channel itself
-        # beam trigger
-        prev_beam_clipped_inputs = read_eff_from_json(
-            ncomps, args.output_dir, 'clipped_ch_beam.json'
-        ) if i_file > 0 else None
-        prev_beam_clipped = clopper_pearson(
-            prev_beam_clipped_inputs[0], prev_beam_clipped_inputs[1]
-        ) if prev_beam_clipped_inputs is not None else None
-        clip_pass, clip_tot = plot_clipped_ch_fraction(
-            prev_beam_clipped, beam_clipped, beam_max_values, ptps,
-            "Beam trigger", output_name='plot_clipped7_ch_beam.pdf'
-        )
-        if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
-                        args.output_dir, 'clipped_ch_beam.json')
-        # self-trigger
-        prev_strig_clipped_inputs = read_eff_from_json(
-            ncomps, args.output_dir, 'clipped_ch_self.json'
-        ) if i_file > 0 else None
-        prev_strig_clipped = clopper_pearson(
-            prev_strig_clipped_inputs[0], prev_strig_clipped_inputs[1]
-        ) if prev_strig_clipped_inputs is not None else None
-        clip_pass, clip_tot = plot_clipped_ch_fraction(
-            prev_strig_clipped, strig_clipped, strig_max_values, ptps,
-            "Self-trigger Trigger", output_name='plot_clipped8_ch_self.pdf'
-        )
-        if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
-                        args.output_dir, 'clipped_ch_self.json')
-        print(f"Clipped channel fraction plotted for file: {filename}")
-
-        # plot negative spike fraction for events with light on the channels' TPC
-        # beam trigger
-        prev_beam_negs_inputs = read_eff_from_json(
-            ncomps, args.output_dir, 'negatives_tpc_beam.json'
-        ) if i_file > 0 else None
-        prev_beam_negs = clopper_pearson(
-            prev_beam_negs_inputs[0], prev_beam_negs_inputs[1]
-        ) if prev_beam_negs_inputs is not None else None
-        negs_pass, negs_tot = plot_neg_tpc_fraction(
-            prev_beam_negs, beam_negs, beam_max_values, ptps,
-            "Beam trigger", "plot_negatives1_beam_tpc.pdf"
-        )
-        if args.write_json_blobs: save_eff_as_json(i_file, negs_pass, negs_tot,
-                        args.output_dir, 'negatives_tpc_beam.json')
-        # self-trigger
-        prev_strig_negs_inputs = read_eff_from_json(
-            ncomps, args.output_dir, 'negatives_tpc_self.json'
-        ) if i_file > 0 else None
-        prev_strig_negs = clopper_pearson(
-            prev_strig_negs_inputs[0], prev_strig_negs_inputs[1]
-        ) if prev_strig_negs_inputs is not None else None
-        negs_pass, negs_tot = plot_neg_tpc_fraction(
-            prev_strig_negs, strig_negs, strig_max_values, ptps,
-            "Self-trigger", "plot_negatives2_self_tpc.pdf"
-        )
-        if args.write_json_blobs: save_eff_as_json(i_file, negs_pass, negs_tot,
-                        args.output_dir, 'negatives_tpc_self.json')
-        print(f"Negative spike TPC fraction plotted for file: {filename}")
-
-        # plot negative spike fraction for events with lig`-
-        # n the channels' EPCB
-        # beam trigger
-        prev_beam_negs_inputs = read_eff_from_json(
-            ncomps, args.output_dir, 'negatives_epcb_beam.json'
-        ) if i_file > 0 else None
-        prev_beam_negs = clopper_pearson(
-            prev_beam_negs_inputs[0], prev_beam_negs_inputs[1]
-        ) if prev_beam_negs_inputs is not None else None
-        negs_pass, negs_tot = plot_neg_epcb_fraction(
-            prev_beam_negs, beam_negs, beam_max_values, ptps,
-            "Beam trigger", "plot_negatives3_beam_epcb.pdf"
-        )
-        if args.write_json_blobs: save_eff_as_json(i_file, negs_pass, negs_tot,
-                        args.output_dir, 'negatives_epcb_beam.json')
-        # self-trigger
-        prev_strig_negs_inputs = read_eff_from_json(
-            ncomps, args.output_dir, 'negatives_epcb_self.json'
-        ) if i_file > 0 else None
-        prev_strig_negs = clopper_pearson(
-            prev_strig_negs_inputs[0], prev_strig_negs_inputs[1]
-        ) if prev_strig_negs_inputs is not None else None
-        negs_pass, negs_tot = plot_neg_epcb_fraction(
-            prev_strig_negs, strig_negs, strig_max_values, ptps,
-            "Self-trigger ", "plot_negatives4_self_epcb.pdf"
-        )
-        if args.write_json_blobs: save_eff_as_json(i_file, negs_pass, negs_tot,
-                        args.output_dir, 'negatives_epcb_self.json')
-        print(f"Negative spike EPCB fraction plotted for file: {filename}")
+        if args.plot_negatives:
+            # plot negative spike fraction for events with light on the channels' TPC
+            # beam trigger
+            prev_beam_negs_inputs = read_eff_from_json(
+                ncomps, args.output_dir, 'negatives_tpc_beam.json'
+            ) if i_file > 0 else None
+            prev_beam_negs = clopper_pearson(
+                prev_beam_negs_inputs[0], prev_beam_negs_inputs[1]
+            ) if prev_beam_negs_inputs is not None else None
+            negs_pass, negs_tot = plot_neg_tpc_fraction(
+                prev_beam_negs, beam_negs, beam_max_values, ptps,
+                "Beam trigger", "plot_negatives1_beam_tpc.pdf"
+            )
+            if args.write_json_blobs: save_eff_as_json(i_file, negs_pass, negs_tot,
+                            args.output_dir, 'negatives_tpc_beam.json')
+            # self-trigger
+            prev_strig_negs_inputs = read_eff_from_json(
+                ncomps, args.output_dir, 'negatives_tpc_self.json'
+            ) if i_file > 0 else None
+            prev_strig_negs = clopper_pearson(
+                prev_strig_negs_inputs[0], prev_strig_negs_inputs[1]
+            ) if prev_strig_negs_inputs is not None else None
+            negs_pass, negs_tot = plot_neg_tpc_fraction(
+                prev_strig_negs, strig_negs, strig_max_values, ptps,
+                "Self-trigger", "plot_negatives2_self_tpc.pdf"
+            )
+            if args.write_json_blobs: save_eff_as_json(i_file, negs_pass, negs_tot,
+                            args.output_dir, 'negatives_tpc_self.json')
+            print(f"Negative spike TPC fraction plotted for file: {filename}")
+    
+            # plot negative spike fraction for events with lig`-
+            # n the channels' EPCB
+            # beam trigger
+            prev_beam_negs_inputs = read_eff_from_json(
+                ncomps, args.output_dir, 'negatives_epcb_beam.json'
+            ) if i_file > 0 else None
+            prev_beam_negs = clopper_pearson(
+                prev_beam_negs_inputs[0], prev_beam_negs_inputs[1]
+            ) if prev_beam_negs_inputs is not None else None
+            negs_pass, negs_tot = plot_neg_epcb_fraction(
+                prev_beam_negs, beam_negs, beam_max_values, ptps,
+                "Beam trigger", "plot_negatives3_beam_epcb.pdf"
+            )
+            if args.write_json_blobs: save_eff_as_json(i_file, negs_pass, negs_tot,
+                            args.output_dir, 'negatives_epcb_beam.json')
+            # self-trigger
+            prev_strig_negs_inputs = read_eff_from_json(
+                ncomps, args.output_dir, 'negatives_epcb_self.json'
+            ) if i_file > 0 else None
+            prev_strig_negs = clopper_pearson(
+                prev_strig_negs_inputs[0], prev_strig_negs_inputs[1]
+            ) if prev_strig_negs_inputs is not None else None
+            negs_pass, negs_tot = plot_neg_epcb_fraction(
+                prev_strig_negs, strig_negs, strig_max_values, ptps,
+                "Self-trigger ", "plot_negatives4_self_epcb.pdf"
+            )
+            if args.write_json_blobs: save_eff_as_json(i_file, negs_pass, negs_tot,
+                            args.output_dir, 'negatives_epcb_self.json')
+            print(f"Negative spike EPCB fraction plotted for file: {filename}")
 
         ### GRAFANA PLOTS ###
 
