@@ -14,7 +14,7 @@
 '''
     # example usage:
 
-python light_dqm.py
+python light_dqm_jvmead.py
                        --input_path /global/cfs/cdirs/dune/www/data/2x2/nearline/flowed_light/data_bin004/
                        --output_dir dqm_plots/
                        --units ADC16
