@@ -7,8 +7,10 @@
 ##########################################
 ##
 ##  Written 09.07.2025
+##  Updated 27.08.2025
 ##
 ##    - James Mead <jmead@nikhef.nl>
+##    - Sindhujha Kumaran <s.kumaran@uci.edu>
 ##
 ###########################################
 '''
@@ -70,8 +72,8 @@ def parse_args():
     parser.add_argument('--start_run', type=int, default=0, help='Start run for processing')
     parser.add_argument('--nfiles', type=int, default=1, help='Number of files to process')
     parser.add_argument('--ncomp', type=int, default=-1, help='Number of previous files to compare')
-    parser.add_argument('--powspec_nevts', type=int, default=100, help='Number of events to process per file for noise spectra')
-    parser.add_argument('--max_evts', type=int, default=1000, help='Maximum number of events to process for the whole file')
+    parser.add_argument('--powspec_nevts', type=int, default=500, help='Number of events to process per file for noise spectra')
+    parser.add_argument('--max_evts', type=int, default=500, help='Maximum number of events to process for the whole file')
     parser.add_argument('--write_json_blobs', type=bool, default=False, help='Saves all data to json blobs if true')
     parser.add_argument('--merge_grafana_plots', type=bool, default=False, help='Merge baselines and flatlines grafana plots')
     parser.add_argument('--plot_clipped', type=bool, default=False, help='Plot clipped waveforms')
@@ -250,7 +252,7 @@ def plot_flatline_mask(flatline_mask, channel_status=None, times=None,
                 ax.plot(j, i, marker='o', color='green', markersize=10, fillstyle='none')
             if channel_status is not None and channel_status[i, j] != 0:
                 ax.plot(j, i, marker='.', color='black', markersize=10)
-
+    plt.title("Dead channels", y=1.18, fontsize=14)
     plt.tight_layout()
 
     # add faded line at x=31.5
@@ -361,7 +363,7 @@ def plot_baseline_mask(baseline_mask, channel_status=None, times=None,
                 ax.plot(j, i, marker='o', color='green', markersize=10, fillstyle='none')
             if channel_status is not None and channel_status[i, j] != 0:
                 ax.plot(j, i, marker='.', color='black', markersize=10)
-
+    plt.title("Channels with baseline deviation", y=1.18, fontsize=14)
     plt.tight_layout()
     # add faded line at x=31.5
     ax.axvline(x=31.5, color='grey', linestyle='-', linewidth=1, alpha=0.5)
@@ -442,13 +444,14 @@ def plot_sum_waveform(waveform, units='ADC16', i_evt=0, output_name='sum_wavefor
             # set title
             axes[idx, tt_idx].set_title(f'Event {i_evt} - Non-beam trigger timing')
             axes[idx, tt_idx].plot(sum_wvfm, color='black', alpha=0.5, label='Sum ADC')
-            axes[idx, tt_idx].set_title(f'ADC {i} - EPCB {j}')
+            axes[idx, tt_idx].set_title(f'ADC {i} - EPCB {j} summed waveforms')
             axes[idx, tt_idx].set_ylabel(f'{units} counts')
             axes[idx, tt_idx].legend(loc='upper right', fontsize='small')
             axes[idx, tt_idx].grid(True)
             axes[idx, tt_idx].set_xlim(0, 1000)
             axes[idx, tt_idx].set_ylim(-5000, 70000)
-    axes[-1, 0].set_xlabel('Samples')
+    axes[-1, 0].set_xlabel('Samples/ time (ticks)')
+    axes[-1, 1].set_xlabel('Samples/ time (ticks)')
     plt.tight_layout()
     plt.show()
     # save as pdf
@@ -527,6 +530,7 @@ def plot_noises(prev_noises, noises, i_evt, mask_inactive=True,
         medians[i, mask] = median[mask]
         lowers[i, mask] = lower[mask]
         uppers[i, mask] = upper[mask]
+    axes[-1].set_xlabel('channel #')
     # adjust layout
     plt.tight_layout()
     plt.show()
@@ -601,6 +605,7 @@ def plot_baselines(prev_baselines, baselines, i_evt, mask_inactive=True,
         ax.grid(True, which='both', linestyle='--', linewidth=0.5)
 
     # adjust layout
+    axes[-1].set_xlabel('channel #')
     plt.ylim(-30000, -20000)  # Set y-axis limit to -1000 to 1000 ADC counts
     plt.tight_layout()
     plt.show()
@@ -672,7 +677,7 @@ def plot_noise_spectra_epcb(
             avg = np.nanmean(noise_spectra[i, ch_mask], axis=0)
 
             axes[idx].step(
-                freq_bins[freq_mask],
+                freq_bins[freq_mask]/1e6,
                 avg[freq_mask],
                 where='mid',
                 label=f'EPCB {j}'
@@ -682,7 +687,7 @@ def plot_noise_spectra_epcb(
             axes[idx].set_ylabel('V^2 / bin')
             axes[idx].set_yscale('log')
             axes[idx].set_ylim(5e-10, 1e-5)
-            axes[idx].set_xlim(0, 31.25e6)
+            axes[idx].set_xlim(0, 31.25)
             axes[idx].legend(loc='upper right', fontsize='x-small')
 
             # add grid lines
@@ -733,7 +738,7 @@ def plot_noise_spectra_channels(
 
                 # plot step for centre line and fill between for error bands
                 axes[idx].step(
-                    freq_bins[freq_mask],
+                    freq_bins[freq_mask]/1e6,
                     noise_spectra[i, k][freq_mask],
                     where='mid', label=f'Channel {k}'
                 )
@@ -748,7 +753,7 @@ def plot_noise_spectra_channels(
             axes[idx].set_yscale('log')
             axes[idx].grid(True, which='major', linestyle='-', linewidth=0.5)
             axes[idx].set_ylim(5e-10, 1e-5)
-            axes[idx].set_xlim(0, 31.25e6)
+            axes[idx].set_xlim(0, 31.25)
 
     axes[-1].set_xlabel('Frequency (MHz)')
     plt.tight_layout()
@@ -810,15 +815,22 @@ def plot_clipped_fraction(prev_clipped_evts, clipped_evts, title=None,
                     [idx - 0.5, idx + 0.5], [c - l, c - l], [c + u, c + u],
                     color='red', alpha=alphas[idx]/4, step='post'
                 )
+            color = 'b'
+            if clipped_pct[idx] == 0:  
+                # just a single point at zero
+                ax.plot(idx, 0, '.', color=color, markersize=3, alpha=alphas[idx])
+            else:
+                # point + Clopper–Pearson error bars
+                yerr_lower = max(err_low[idx], 0)
+                yerr_upper = max(err_up[idx], 0)
+                ax.errorbar(
+                    idx, clipped_pct[idx],
+                    yerr=[[yerr_lower], [yerr_upper]],
+                    fmt='.', ecolor=color, markersize=3,
+                    capsize=4, linewidth=1, color=color,
+                    alpha=alphas[idx]
+                )
 
-            color = 'b' #if clipped_pct[idx] > 0 else 'g'
-            ax.errorbar(
-                idx, clipped_pct[idx],
-                yerr=[[err_low[idx]], [err_up[idx]]],
-                fmt='.', ecolor=color, markersize=3,
-                capsize=4, linewidth=1, color=color,
-                alpha=alphas[idx]
-            )
 
         # formatting
         #ax.set_ylim(0, 1)  # Set y-axis limit to 0-10%
@@ -828,7 +840,7 @@ def plot_clipped_fraction(prev_clipped_evts, clipped_evts, title=None,
         # save clipped numerator and denominator for later use
         clip_passed[i_adc, :] = clipped_counts
         total_evts[i_adc, :] = total_events
-
+    axes[-1].set_xlabel('channel #')
     plt.tight_layout()
     plt.show()
     # save as pdf
@@ -899,15 +911,22 @@ def plot_clipped_tpc_fraction(prev_clipped_evts, clipped_evts, max_vals, ths,
                     [idx - 0.5, idx + 0.5], [c - l, c - l], [c + u, c + u],
                     color='red', alpha=alphas[idx]/4, step='post'
                 )
+            color = 'b'
+            if clipped_pct[idx] == 0:  
+                # just a single point at zero
+                ax.plot(idx, 0, '.', color=color, markersize=3, alpha=alphas[idx])
+            else:
+                # point + Clopper–Pearson error bars
+                yerr_lower = max(err_low[idx], 0)
+                yerr_upper = max(err_up[idx], 0)
+                ax.errorbar(
+                    idx, clipped_pct[idx],
+                    yerr=[[yerr_lower], [yerr_upper]],
+                    fmt='.', ecolor=color, markersize=3,
+                    capsize=4, linewidth=1, color=color,
+                    alpha=alphas[idx]
+                )
 
-            color = 'b' #if clipped_pct[idx] > 0 else 'g'
-            ax.errorbar(
-                idx, clipped_pct[idx],
-                yerr=[[err_low[idx]], [err_up[idx]]],
-                fmt='.', ecolor=color, markersize=3,
-                capsize=4, linewidth=1, color=color,
-                alpha=alphas[idx]
-            )
 
         # formatting
         #ax.set_ylim(0, 5)  # Set y-axis limit to 0-10%
@@ -918,7 +937,7 @@ def plot_clipped_tpc_fraction(prev_clipped_evts, clipped_evts, max_vals, ths,
         # save clipped numerator and denominator for later use
         clip_passed[i_adc, :] = clipped_counts
         total_evts[i_adc, :] = total_events
-
+    axes[-1].set_xlabel('channel #')
     plt.tight_layout()
     plt.show()
     # save as pdf
@@ -978,14 +997,22 @@ def plot_clipped_epcb_fraction(prev_clipped_evts, clipped_evts, max_vals, ths,
                     [idx - 0.5, idx + 0.5], [c - l, c - l], [c + u, c + u],
                     color='red', alpha=alphas[idx]/4, step='post'
                 )
-            color = 'b' #if clipped_pct[idx] > 0 else 'g'
-            ax.errorbar(
-                idx, clipped_pct[idx],
-                yerr=[[err_low[idx]], [err_up[idx]]],
-                fmt='.', ecolor=color, markersize=3,
-                capsize=4, linewidth=1, color=color,
-                alpha=alphas[idx]
-            )
+
+            color = 'b'
+            if clipped_pct[idx] == 0:  
+                # just a single point at zero
+                ax.plot(idx, 0, '.', color=color, markersize=3, alpha=alphas[idx])
+            else:
+                # point + Clopper–Pearson error bars
+                yerr_lower = max(err_low[idx], 0)
+                yerr_upper = max(err_up[idx], 0)
+                ax.errorbar(
+                    idx, clipped_pct[idx],
+                    yerr=[[yerr_lower], [yerr_upper]],
+                    fmt='.', ecolor=color, markersize=3,
+                    capsize=4, linewidth=1, color=color,
+                    alpha=alphas[idx]
+                )
 
         # formatting
         #ax.set_ylim(0, 5)  # Set y-axis limit to 0-10%
@@ -996,7 +1023,7 @@ def plot_clipped_epcb_fraction(prev_clipped_evts, clipped_evts, max_vals, ths,
         # save clipped numerator and denominator for later use
         clip_passed[i_adc, :] = clipped_counts
         total_evts[i_adc, :] = total_events
-
+    axes[-1].set_xlabel('channel #')
     plt.tight_layout()
     plt.show()
     # save as pdf
@@ -1050,15 +1077,21 @@ def plot_clipped_ch_fraction(prev_clipped_evts, clipped_evts, max_vals, ths,
                     [idx - 0.5, idx + 0.5], [c - l, c - l], [c + u, c + u],
                     color='red', alpha=alphas[idx]/4, step='post'
                 )
-
-            color = 'b' #if clipped_pct[idx] > 0 else 'g'
-            ax.errorbar(
-                idx, clipped_pct[idx],
-                yerr=[[err_low[idx]], [err_up[idx]]],
-                fmt='.', ecolor=color, markersize=3,
-                capsize=4, linewidth=1, color=color,
-                alpha=alphas[idx]
-            )
+            color = 'b'
+            if clipped_pct[idx] == 0:  
+                # just a single point at zero
+                ax.plot(idx, 0, '.', color=color, markersize=3, alpha=alphas[idx])
+            else:
+                # point + Clopper–Pearson error bars
+                yerr_lower = max(err_low[idx], 0)
+                yerr_upper = max(err_up[idx], 0)
+                ax.errorbar(
+                    idx, clipped_pct[idx],
+                    yerr=[[yerr_lower], [yerr_upper]],
+                    fmt='.', ecolor=color, markersize=3,
+                    capsize=4, linewidth=1, color=color,
+                    alpha=alphas[idx]
+                )
 
         # formatting
         #ax.set_ylim(0, 10)  # Set y-axis limit to 0-10%
@@ -1069,7 +1102,7 @@ def plot_clipped_ch_fraction(prev_clipped_evts, clipped_evts, max_vals, ths,
         # save numerator and denominator for later use
         clip_passed[i_adc, :] = clipped_counts
         total_evts[i_adc, :] = total_events
-
+    axes[-1].set_xlabel('channel #')
     plt.tight_layout()
     plt.show()
     # save as pdf
@@ -1136,26 +1169,34 @@ def plot_neg_tpc_fraction(prev_neg_evts, neg_evts, max_vals, ths,
                 [idx - 0.5, idx + 0.5], [c - l, c - l], [c + u, c + u],
                 color='red', alpha=alphas[idx]/4, step='post'
             )
+        # current file
+        color = 'b'
+        if neg_pct[idx] == 0:  
+            # just a single point at zero
+            ax.plot(idx, 0, '.', color=color, markersize=3, alpha=alphas[idx])
+        else:
+            # point + Clopper–Pearson error bars
+            yerr_lower = max(err_low[idx], 0)
+            yerr_upper = max(err_up[idx], 0)
+            ax.errorbar(
+                idx, neg_pct[idx],
+                yerr=[[yerr_lower], [yerr_upper]],
+                fmt='.', ecolor=color, markersize=3,
+                capsize=4, linewidth=1, color=color,
+                alpha=alphas[idx]
+            )
 
-        color = 'b' #if neg_pct[idx] > 0 else 'g'
-        ax.errorbar(
-            idx, neg_pct[idx],
-            yerr=[[err_low[idx]], [err_up[idx]]],
-            fmt='.', ecolor=color, markersize=3,
-            capsize=4, linewidth=1, color=color,
-            alpha=alphas[idx]
-        )
 
     # formatting
     #x.set_ylim(0,100)
-    ax.set_title(f'ADC {i_adc} - ' + (title if title else f'ADC {i_adc}'))
+    ax.set_title(f'ADC {i_adc} - ' + (title if title else f'ADC {i_adc} negative baselines'))
     ax.set_ylabel(ylabel)
     ax.grid(True, which='both', linestyle='--', linewidth=0.5)
 
     # save numerator and denominator for later use
     neg_passed[i_adc, :] = neg_counts
     total_evts[i_adc, :] = total_events
-
+    axes[-1].set_xlabel('channel #')
   plt.tight_layout()
   plt.show()
   # save as pdf
@@ -1215,25 +1256,33 @@ def plot_neg_epcb_fraction(prev_neg_evts, neg_evts, max_vals, ths,
                 [idx - 0.5, idx + 0.5], [c - l, c - l], [c + u, c + u],
                 color='red', alpha=alphas[idx]/4, step='post'
             )
+        # current file
+        color = 'b'
+        if neg_pct[idx] == 0:  
+            # just a single point at zero
+            ax.plot(idx, 0, '.', color=color, markersize=3, alpha=alphas[idx])
+        else:
+            # point + Clopper–Pearson error bars
+            yerr_lower = max(err_low[idx], 0)
+            yerr_upper = max(err_up[idx], 0)
+            ax.errorbar(
+                idx, neg_pct[idx],
+                yerr=[[yerr_lower], [yerr_upper]],
+                fmt='.', ecolor=color, markersize=3,
+                capsize=4, linewidth=1, color=color,
+                alpha=alphas[idx]
+            )
 
-        color = 'b' #if neg_pct[idx] > 0 else 'g'
-        ax.errorbar(
-            idx, neg_pct[idx],
-            yerr=[[err_low[idx]], [err_up[idx]]],
-            fmt='.', ecolor=color, markersize=3,
-            capsize=4, linewidth=1, color=color,
-            alpha=alphas[idx]
-        )
 
     # formatting
-    ax.set_title(f'ADC {i_adc} - ' + (title if title else f'ADC {i_adc}'))
+    ax.set_title(f'ADC {i_adc} - ' + (title if title else f'ADC {i_adc} negative baselines'))
     ax.set_ylabel(ylabel)
     ax.grid(True, which='both', linestyle='--', linewidth=0.5)
 
     # save negative percentages and bounds
     neg_passed[i_adc, :] = neg_counts
     total_evts[i_adc, :] = total_events
-
+  axes[-1].set_xlabel('channel #')
   plt.tight_layout()
   plt.show()
   # save as pdf
@@ -1271,7 +1320,7 @@ def read_from_json(file_indices, output_dir, filename):
 
     # Check if file exists
     if not os.path.exists(filepath):
-        print(f"JSON file not found: {filepath}")
+        print(f"JSON file not found: {filepath}, not making comparisons")
         return None
 
     data_c, data_l, data_u = [], [], []
@@ -1348,7 +1397,7 @@ def read_eff_from_json(file_indices, output_dir, filename):
 
     # Check if file exists
     if not os.path.exists(filepath):
-        print(f"Efficiency JSON file not found: {filepath}")
+        print(f"Efficiency JSON file not found: {filepath}, not making comparisons")
         return None
 
     passed, totals = [], []
@@ -1384,6 +1433,8 @@ def main():
     """
     Main entry point for DUNE light file processing and plotting.
     """
+    # start timer
+    start_time = time.time()
     from ascii import header, footer
     header()
 
@@ -1391,10 +1442,10 @@ def main():
     if args.units not in ['ADC16', 'ADC14', 'V']:
         print(f"Invalid units: {args.units}. Must be 'ADC16', 'ADC14', or 'V'.")
         sys.exit(1)
+    
 
-    # start timer
-    start_time = time.time()
-
+    if args.powspec_nevts < args.max_evts:
+        raise ValueError("Number of events for the power spectrum can't be lower than the total events")
     # Ensure output directory exists
 
     try:
@@ -1453,22 +1504,32 @@ def main():
             ncomps = np.arange(0, i_file, 1)
         else:
             ncomps = np.arange(i_file-args.ncomp, i_file, 1)
-
-        # define datasets for beam trigger type
+        # total number of available events
+        nevents_total = file["light/wvfm/data"]['samples'].shape[0]
+        
+        # select evenly spaced indices up to max_evts
+        sel_idx = np.linspace(0, nevents_total - 1, args.max_evts, dtype=int)
+        
+        # beam events
+        beam_mask = sel_idx[file["light/events/data"]['trig_type'][sel_idx] == 1]
         beam_wvfms, beam_noises, beam_baselines, beam_max_values, beam_clipped, beam_negs = get_waveform_info(
-            file["light/wvfm/data"]['samples'][:args.max_evts], args.units, mask = np.where(file["light/events/data"]['trig_type'][:args.max_evts] == 1)[0], ths=ptps)
+            file["light/wvfm/data"]['samples'], args.units, mask=beam_mask, ths=ptps)
         nbeam_evts = beam_wvfms.shape[0]
-        print("    Number of beam events:", nbeam_evts)
-        # define datasets for self-trigger type
+        
+        # self-trigger events
+        strig_mask = sel_idx[file["light/events/data"]['trig_type'][sel_idx] == 0]
         strig_wvfms, strig_noises, strig_baselines, strig_max_values, strig_clipped, strig_negs = get_waveform_info(
-            file["light/wvfm/data"]['samples'][:args.max_evts], args.units, mask = np.where(file["light/events/data"]['trig_type'][:args.max_evts] == 0)[0], ths=ptps)
+            file["light/wvfm/data"]['samples'], args.units, mask=strig_mask, ths=ptps)
         nstrig_evts = strig_wvfms.shape[0]
-        print("    Number of self-trigger events:", nstrig_evts)
-        # define datasets for all events
-        wvfms, noises, baselines, max_values, clipped, negs = get_waveform_info(file["light/wvfm/data"]['samples'][:args.max_evts], args.units, ths=ptps)
+        
+        # all events
+        wvfms, noises, baselines, max_values, clipped, negs = get_waveform_info(
+            file["light/wvfm/data"]['samples'], args.units, mask=sel_idx, ths=ptps)
         nevts = wvfms.shape[0]
+        
+        print("    Number of beam events:", nbeam_evts)
+        print("    Number of self-trigger events:", nstrig_evts)
         print("    Total number of events:", nevts)
-        print(f"Waveform info extracted for file: {filename}")
 
         ### DQM PLOTS ###
 
@@ -1478,7 +1539,7 @@ def main():
         evts = np.array([max_integral_evt])
         for evt in evts:
             plot_sum_waveform(wvfms - baselines[:, :, :, np.newaxis],
-                              args.units, i_evt=evt, output_name='plot_sumwvfm.pdf')
+                              args.units, i_evt=evt, output_name='plot1_sumwvfm.pdf')
         print(f"Sum waveform plotted for file: {filename}")
 
         # noise spectra
@@ -1508,7 +1569,7 @@ def main():
         plot_noise_spectra_epcb(
             freq_bins, noise_spectrum, None, None,
             skip_bad_channels=True, nevts=args.powspec_nevts,
-            output_name='plot_powspec.pdf',
+            output_name='plot5_powspec.pdf',
         )
         #plot_noise_spectra_channels(
         #    freq_bins, noise_spectrum, None, None,
@@ -1523,7 +1584,7 @@ def main():
         ) if i_file > 0 else None
         noise_c, noise_l, noise_u = plot_noises(prev_noises,
             strig_noises, i_evt=np.arange(0, strig_baselines.shape[0], 1),
-            mask_inactive=False, output_name='plot_noises.pdf'
+            mask_inactive=False, output_name='plot4_noises.pdf'
         )
         if args.write_json_blobs: save_as_json(i_file, noise_c, noise_l, noise_u,
                      args.output_dir, 'noises.json')
@@ -1534,7 +1595,7 @@ def main():
         ) if i_file > 0 else None
         bline_c, bline_l, bline_u = plot_baselines(prev_baselines,
             strig_baselines, i_evt=np.arange(0, strig_baselines.shape[0], 1),
-            mask_inactive=False, output_name='plot_baselines.pdf'
+            mask_inactive=False, output_name='plot2_baselines.pdf'
         )
         if args.write_json_blobs: save_as_json(i_file, bline_c, bline_l, bline_u,
                      args.output_dir, 'baselines.json')
@@ -1542,180 +1603,188 @@ def main():
 
         if args.plot_clipped:
             # Plot clipped fraction for total
-            # beam events
-            prev_beam_clipped_inputs = read_eff_from_json(
-                ncomps, args.output_dir, 'clipped_total_beam.json'
-            ) if i_file > 0 else None
-            prev_beam_clipped = clopper_pearson(
-                prev_beam_clipped_inputs[0], prev_beam_clipped_inputs[1]
-            ) if prev_beam_clipped_inputs is not None else None
-            clip_pass, clip_tot = plot_clipped_fraction(
-                prev_beam_clipped, beam_clipped,
-                title='Beam trigger', output_name='plot_clipped1_beam.pdf'
-            )
-            if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
-                            args.output_dir, 'clipped_total_beam.json')
-            # self-trigger
-            prev_strig_clipped_inputs = read_eff_from_json(
-                ncomps, args.output_dir, 'clipped_total_self.json'
-            ) if i_file > 0 else None
-            prev_strig_clipped = clopper_pearson(
-                prev_strig_clipped_inputs[0], prev_strig_clipped_inputs[1]
-            ) if prev_strig_clipped_inputs is not None else None
-            clip_pass, clip_tot  = plot_clipped_fraction(
-                prev_strig_clipped, strig_clipped,
-                title='Self-trigger', output_name='plot_clipped2_self.pdf'
-            )
-            if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
-                            args.output_dir, 'clipped_total_self.json')
-            print(f"Clipped fraction plotted for file: {filename}")
+            if nbeam_evts:
+                # beam events
+                prev_beam_clipped_inputs = read_eff_from_json(
+                    ncomps, args.output_dir, 'clipped_total_beam.json'
+                ) if i_file > 0 else None
+                prev_beam_clipped = clopper_pearson(
+                    prev_beam_clipped_inputs[0], prev_beam_clipped_inputs[1]
+                ) if prev_beam_clipped_inputs is not None else None
+                clip_pass, clip_tot = plot_clipped_fraction(
+                    prev_beam_clipped, beam_clipped,
+                    title='Beam trigger (% of events with clipped waveforms)', output_name='plot6_clipped_beam.pdf'
+                )
+                if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
+                                args.output_dir, 'clipped_total_beam.json')
+                            # Plot clipped fraction for events with light on the channels' TPC
+                # beam trigger
+                prev_beam_clipped_inputs = read_eff_from_json(
+                    ncomps, args.output_dir, 'clipped_tpc_beam.json'
+                ) if i_file > 0 else None
+                prev_beam_clipped = clopper_pearson(
+                    prev_beam_clipped_inputs[0], prev_beam_clipped_inputs[1]
+                ) if prev_beam_clipped_inputs is not None else None
+                clip_pass, clip_tot = plot_clipped_tpc_fraction(
+                    prev_beam_clipped, beam_clipped, beam_max_values, ptps,
+                    title='Beam trigger (% of events with clipped waveforms, normalized per TPC)', output_name='plot6_clipped_beam_tpc.pdf'
+                )
+                if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
+                                args.output_dir, 'clipped_tpc_beam.json')
+                            # Plot clipped fraction for events with light on the channels' EPCB
+                # beam trigger
+                prev_beam_clipped_inputs = read_eff_from_json(
+                    ncomps, args.output_dir, 'clipped_epcb_beam.json'
+                ) if i_file > 0 else None
+                prev_beam_clipped = clopper_pearson(
+                    prev_beam_clipped_inputs[0], prev_beam_clipped_inputs[1]
+                ) if prev_beam_clipped_inputs is not None else None
+                clip_pass, clip_tot = plot_clipped_epcb_fraction(
+                    prev_beam_clipped, beam_clipped, beam_max_values, ptps,
+                    "Beam trigger (% of events with clipped waveforms, normalized per ECPB)", output_name='plot6_clipped_beam_epcb.pdf'
+                )
+                if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
+                                args.output_dir, 'clipped_epcb_beam.json')
+                            # plot clipped fraction for events with light on the channel itself
+                # beam trigger
+                prev_beam_clipped_inputs = read_eff_from_json(
+                    ncomps, args.output_dir, 'clipped_ch_beam.json'
+                ) if i_file > 0 else None
+                prev_beam_clipped = clopper_pearson(
+                    prev_beam_clipped_inputs[0], prev_beam_clipped_inputs[1]
+                ) if prev_beam_clipped_inputs is not None else None
+                clip_pass, clip_tot = plot_clipped_ch_fraction(
+                    prev_beam_clipped, beam_clipped, beam_max_values, ptps,
+                    "Beam trigger (% of events with clipped waveforms, normalized per channel)", output_name='plot6_clipped_ch_beam.pdf'
+                )
+                if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
+                                args.output_dir, 'clipped_ch_beam.json')
+            if nstrig_evts:
+                # self-trigger
+                prev_strig_clipped_inputs = read_eff_from_json(
+                    ncomps, args.output_dir, 'clipped_total_self.json'
+                ) if i_file > 0 else None
+                prev_strig_clipped = clopper_pearson(
+                    prev_strig_clipped_inputs[0], prev_strig_clipped_inputs[1]
+                ) if prev_strig_clipped_inputs is not None else None
+                clip_pass, clip_tot  = plot_clipped_fraction(
+                    prev_strig_clipped, strig_clipped,
+                    title='Self-trigger (% of events with clipped waveforms)', output_name='plot6_clipped_self.pdf'
+                )
+                if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
+                                args.output_dir, 'clipped_total_self.json')
+                print(f"Clipped fraction plotted for file: {filename}")
     
-            # Plot clipped fraction for events with light on the channels' TPC
-            # beam trigger
-            prev_beam_clipped_inputs = read_eff_from_json(
-                ncomps, args.output_dir, 'clipped_tpc_beam.json'
-            ) if i_file > 0 else None
-            prev_beam_clipped = clopper_pearson(
-                prev_beam_clipped_inputs[0], prev_beam_clipped_inputs[1]
-            ) if prev_beam_clipped_inputs is not None else None
-            clip_pass, clip_tot = plot_clipped_tpc_fraction(
-                prev_beam_clipped, beam_clipped, beam_max_values, ptps,
-                title='Beam trigger', output_name='plot_clipped3_beam_tpc.pdf'
-            )
-            if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
-                            args.output_dir, 'clipped_tpc_beam.json')
-            # self-trigger
-            prev_strig_clipped_inputs = read_eff_from_json(
-                ncomps, args.output_dir, 'clipped_tpc_self.json'
-            ) if i_file > 0 else None
-            prev_strig_clipped = clopper_pearson(
-                prev_strig_clipped_inputs[0], prev_strig_clipped_inputs[1]
-            ) if prev_strig_clipped_inputs is not None else None
-            clip_pass, clip_tot = plot_clipped_tpc_fraction(
-                prev_strig_clipped, strig_clipped, strig_max_values, ptps,
-                title='Self-trigger', output_name='plot_clipped4_self_tpc.pdf'
-            )
-            if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
-                            args.output_dir, 'clipped_tpc_self.json')
-            print(f"Clipped TPC fraction plotted for file: {filename}")
+
+                # self-trigger
+                prev_strig_clipped_inputs = read_eff_from_json(
+                    ncomps, args.output_dir, 'clipped_tpc_self.json'
+                ) if i_file > 0 else None
+                prev_strig_clipped = clopper_pearson(
+                    prev_strig_clipped_inputs[0], prev_strig_clipped_inputs[1]
+                ) if prev_strig_clipped_inputs is not None else None
+                clip_pass, clip_tot = plot_clipped_tpc_fraction(
+                    prev_strig_clipped, strig_clipped, strig_max_values, ptps,
+                    title='Self-trigger (% of events with clipped waveforms, normalized per TPC)', output_name='plot6_clipped_self_tpc.pdf'
+                )
+                if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
+                                args.output_dir, 'clipped_tpc_self.json')
+                print(f"Clipped TPC fraction plotted for file: {filename}")
     
-            # Plot clipped fraction for events with light on the channels' EPCB
-            # beam trigger
-            prev_beam_clipped_inputs = read_eff_from_json(
-                ncomps, args.output_dir, 'clipped_epcb_beam.json'
-            ) if i_file > 0 else None
-            prev_beam_clipped = clopper_pearson(
-                prev_beam_clipped_inputs[0], prev_beam_clipped_inputs[1]
-            ) if prev_beam_clipped_inputs is not None else None
-            clip_pass, clip_tot = plot_clipped_epcb_fraction(
-                prev_beam_clipped, beam_clipped, beam_max_values, ptps,
-                "Beam trigger", output_name='plot_clipped5_beam_epcb.pdf'
-            )
-            if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
-                            args.output_dir, 'clipped_epcb_beam.json')
-            # self-trigger
-            prev_strig_clipped_inputs = read_eff_from_json(
-                ncomps, args.output_dir, 'clipped_epcb_self.json'
-            ) if i_file > 0 else None
-            prev_strig_clipped = clopper_pearson(
-                prev_strig_clipped_inputs[0], prev_strig_clipped_inputs[1]
-            ) if prev_strig_clipped_inputs is not None else None
-            clip_pass, clip_tot = plot_clipped_epcb_fraction(
-                prev_strig_clipped, strig_clipped, strig_max_values, ptps,
-                "Self-trigger", output_name='plot_clipped6_self_epcb.pdf'
-            )
-            if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
-                            args.output_dir, 'clipped_epcb_self.json')
-            print(f"Clipped EPCB fraction plotted for file: {filename}")
     
-            # plot clipped fraction for events with light on the channel itself
-            # beam trigger
-            prev_beam_clipped_inputs = read_eff_from_json(
-                ncomps, args.output_dir, 'clipped_ch_beam.json'
-            ) if i_file > 0 else None
-            prev_beam_clipped = clopper_pearson(
-                prev_beam_clipped_inputs[0], prev_beam_clipped_inputs[1]
-            ) if prev_beam_clipped_inputs is not None else None
-            clip_pass, clip_tot = plot_clipped_ch_fraction(
-                prev_beam_clipped, beam_clipped, beam_max_values, ptps,
-                "Beam trigger", output_name='plot_clipped7_ch_beam.pdf'
-            )
-            if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
-                            args.output_dir, 'clipped_ch_beam.json')
-            # self-trigger
-            prev_strig_clipped_inputs = read_eff_from_json(
-                ncomps, args.output_dir, 'clipped_ch_self.json'
-            ) if i_file > 0 else None
-            prev_strig_clipped = clopper_pearson(
-                prev_strig_clipped_inputs[0], prev_strig_clipped_inputs[1]
-            ) if prev_strig_clipped_inputs is not None else None
-            clip_pass, clip_tot = plot_clipped_ch_fraction(
-                prev_strig_clipped, strig_clipped, strig_max_values, ptps,
-                "Self-trigger Trigger", output_name='plot_clipped8_ch_self.pdf'
-            )
-            if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
-                            args.output_dir, 'clipped_ch_self.json')
-            print(f"Clipped channel fraction plotted for file: {filename}")
+                # self-trigger
+                prev_strig_clipped_inputs = read_eff_from_json(
+                    ncomps, args.output_dir, 'clipped_epcb_self.json'
+                ) if i_file > 0 else None
+                prev_strig_clipped = clopper_pearson(
+                    prev_strig_clipped_inputs[0], prev_strig_clipped_inputs[1]
+                ) if prev_strig_clipped_inputs is not None else None
+                clip_pass, clip_tot = plot_clipped_epcb_fraction(
+                    prev_strig_clipped, strig_clipped, strig_max_values, ptps,
+                    "Self-trigger (% of events with clipped waveforms, normalized per EPCB)", output_name='plot_clipped6_self_epcb.pdf'
+                )
+                if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
+                                args.output_dir, 'clipped_epcb_self.json')
+                print(f"Clipped EPCB fraction plotted for file: {filename}")
+        
+    
+                # self-trigger
+                prev_strig_clipped_inputs = read_eff_from_json(
+                    ncomps, args.output_dir, 'clipped_ch_self.json'
+                ) if i_file > 0 else None
+                prev_strig_clipped = clopper_pearson(
+                    prev_strig_clipped_inputs[0], prev_strig_clipped_inputs[1]
+                ) if prev_strig_clipped_inputs is not None else None
+                clip_pass, clip_tot = plot_clipped_ch_fraction(
+                    prev_strig_clipped, strig_clipped, strig_max_values, ptps,
+                    "Self-trigger Trigger  (% of events with clipped waveforms, normalized per channel)", output_name='plot_clipped8_ch_self.pdf'
+                )
+                if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
+                                args.output_dir, 'clipped_ch_self.json')
+                print(f"Clipped channel fraction plotted for file: {filename}")
 
         if args.plot_negatives:
-            # plot negative spike fraction for events with light on the channels' TPC
-            # beam trigger
-            prev_beam_negs_inputs = read_eff_from_json(
-                ncomps, args.output_dir, 'negatives_tpc_beam.json'
-            ) if i_file > 0 else None
-            prev_beam_negs = clopper_pearson(
-                prev_beam_negs_inputs[0], prev_beam_negs_inputs[1]
-            ) if prev_beam_negs_inputs is not None else None
-            negs_pass, negs_tot = plot_neg_tpc_fraction(
-                prev_beam_negs, beam_negs, beam_max_values, ptps,
-                "Beam trigger", "plot_negatives1_beam_tpc.pdf"
-            )
-            if args.write_json_blobs: save_eff_as_json(i_file, negs_pass, negs_tot,
-                            args.output_dir, 'negatives_tpc_beam.json')
-            # self-trigger
-            prev_strig_negs_inputs = read_eff_from_json(
-                ncomps, args.output_dir, 'negatives_tpc_self.json'
-            ) if i_file > 0 else None
-            prev_strig_negs = clopper_pearson(
-                prev_strig_negs_inputs[0], prev_strig_negs_inputs[1]
-            ) if prev_strig_negs_inputs is not None else None
-            negs_pass, negs_tot = plot_neg_tpc_fraction(
-                prev_strig_negs, strig_negs, strig_max_values, ptps,
-                "Self-trigger", "plot_negatives2_self_tpc.pdf"
-            )
-            if args.write_json_blobs: save_eff_as_json(i_file, negs_pass, negs_tot,
-                            args.output_dir, 'negatives_tpc_self.json')
-            print(f"Negative spike TPC fraction plotted for file: {filename}")
-    
-            # plot negative spike fraction for events with lig`-
-            # n the channels' EPCB
-            # beam trigger
-            prev_beam_negs_inputs = read_eff_from_json(
-                ncomps, args.output_dir, 'negatives_epcb_beam.json'
-            ) if i_file > 0 else None
-            prev_beam_negs = clopper_pearson(
-                prev_beam_negs_inputs[0], prev_beam_negs_inputs[1]
-            ) if prev_beam_negs_inputs is not None else None
-            negs_pass, negs_tot = plot_neg_epcb_fraction(
-                prev_beam_negs, beam_negs, beam_max_values, ptps,
-                "Beam trigger", "plot_negatives3_beam_epcb.pdf"
-            )
-            if args.write_json_blobs: save_eff_as_json(i_file, negs_pass, negs_tot,
-                            args.output_dir, 'negatives_epcb_beam.json')
-            # self-trigger
-            prev_strig_negs_inputs = read_eff_from_json(
-                ncomps, args.output_dir, 'negatives_epcb_self.json'
-            ) if i_file > 0 else None
-            prev_strig_negs = clopper_pearson(
-                prev_strig_negs_inputs[0], prev_strig_negs_inputs[1]
-            ) if prev_strig_negs_inputs is not None else None
-            negs_pass, negs_tot = plot_neg_epcb_fraction(
-                prev_strig_negs, strig_negs, strig_max_values, ptps,
-                "Self-trigger ", "plot_negatives4_self_epcb.pdf"
-            )
-            if args.write_json_blobs: save_eff_as_json(i_file, negs_pass, negs_tot,
-                            args.output_dir, 'negatives_epcb_self.json')
-            print(f"Negative spike EPCB fraction plotted for file: {filename}")
+            if nbeam_evts:
+                # plot negative spike fraction for events with light on the channels' TPC
+                # beam trigger
+                prev_beam_negs_inputs = read_eff_from_json(
+                    ncomps, args.output_dir, 'negatives_tpc_beam.json'
+                ) if i_file > 0 else None
+                prev_beam_negs = clopper_pearson(
+                    prev_beam_negs_inputs[0], prev_beam_negs_inputs[1]
+                ) if prev_beam_negs_inputs is not None else None
+                negs_pass, negs_tot = plot_neg_tpc_fraction(
+                    prev_beam_negs, beam_negs, beam_max_values, ptps,
+                    "Beam trigger (% of events with -ve baselines, normalized per TPC)", "plot3_negatives_beam_tpc.pdf"
+                )
+                if args.write_json_blobs: save_eff_as_json(i_file, negs_pass, negs_tot,
+                                args.output_dir, 'negatives_tpc_beam.json')
+                # plot negative spike fraction for events with lig`-
+                # n the channels' EPCB
+                # beam trigger
+                prev_beam_negs_inputs = read_eff_from_json(
+                    ncomps, args.output_dir, 'negatives_epcb_beam.json'
+                ) if i_file > 0 else None
+                prev_beam_negs = clopper_pearson(
+                    prev_beam_negs_inputs[0], prev_beam_negs_inputs[1]
+                ) if prev_beam_negs_inputs is not None else None
+                negs_pass, negs_tot = plot_neg_epcb_fraction(
+                    prev_beam_negs, beam_negs, beam_max_values, ptps,
+                    "Beam trigger (% of events with -ve baselines, normalized per EPCB)", "plot3_negatives_beam_epcb.pdf"
+                )
+                if args.write_json_blobs: save_eff_as_json(i_file, negs_pass, negs_tot,
+                                args.output_dir, 'negatives_epcb_beam.json')
+
+            if nstrig_evts:
+                # self-trigger
+                prev_strig_negs_inputs = read_eff_from_json(
+                    ncomps, args.output_dir, 'negatives_tpc_self.json'
+                ) if i_file > 0 else None
+                prev_strig_negs = clopper_pearson(
+                    prev_strig_negs_inputs[0], prev_strig_negs_inputs[1]
+                ) if prev_strig_negs_inputs is not None else None
+                negs_pass, negs_tot = plot_neg_tpc_fraction(
+                    prev_strig_negs, strig_negs, strig_max_values, ptps,
+                    "Self-trigger (% of events with -ve baselines, normalized per TPC)", "plot3_negatives_self_tpc.pdf"
+                )
+                if args.write_json_blobs: save_eff_as_json(i_file, negs_pass, negs_tot,
+                                args.output_dir, 'negatives_tpc_self.json')
+                print(f"Negative spike TPC fraction plotted for file: {filename}")
+
+                # self-trigger
+                prev_strig_negs_inputs = read_eff_from_json(
+                    ncomps, args.output_dir, 'negatives_epcb_self.json'
+                ) if i_file > 0 else None
+                prev_strig_negs = clopper_pearson(
+                    prev_strig_negs_inputs[0], prev_strig_negs_inputs[1]
+                ) if prev_strig_negs_inputs is not None else None
+                negs_pass, negs_tot = plot_neg_epcb_fraction(
+                    prev_strig_negs, strig_negs, strig_max_values, ptps,
+                    "Self-trigger  (% of events with -ve baselines, normalized per EPCB)", "plot3_negatives_self_epcb.pdf"
+                )
+                if args.write_json_blobs: save_eff_as_json(i_file, negs_pass, negs_tot,
+                                args.output_dir, 'negatives_epcb_self.json')
+                print(f"Negative spike EPCB fraction plotted for file: {filename}")
 
         ### GRAFANA PLOTS ###
 
@@ -1725,7 +1794,7 @@ def main():
         )
         # plotting flatlined channels
         plot_flatline_mask(
-            flatlined, cs, output_name=f'flatline_{args.start_run}.pdf',
+            flatlined, cs, output_name=f'flatline_grafana_{args.start_run}.pdf',
             times = (start_central, end_central)
         )
         # checking for baseline fluctuations
@@ -1734,7 +1803,7 @@ def main():
         )
         # plotting baseline fluctuations
         plot_baseline_mask(
-            baselined, cs, output_name=f'baseline_{args.start_run}.pdf',
+            baselined, cs, output_name=f'baseline_grafana_{args.start_run}.pdf',
             times = (start_central, end_central)
         )
 
@@ -1756,11 +1825,11 @@ def main():
 
         args_list = [
             f"File index: {i_file}",
-            input_path_str,
+            f"--input path: {input_path_str}",
             "\n",
             f"Data start timestamp (CT): {start_central}",
             f"Data end timestamp   (CT): {end_central}",
-            f"DQM runtime          (CT): {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time() - 21600))}",
+            f"DQM runtime          (CT): {(time.time() - start_time):.2f} seconds"
             "\n",
             f"--nfiles {args.nfiles}",
             f"--start_run {args.start_run}",
@@ -1799,7 +1868,7 @@ def main():
 
         if args.merge_grafana_plots:
             # Append all Grafana plot PDFs to the merger
-            grafana_plotnames = [f'grafana_plot_{i}.pdf' for i in range(0, 2)]
+            grafana_plotnames = sorted(glob.glob(os.path.join(args.output_dir_dir, "*grafana*.pdf")))
             for grafana_plotname in grafana_plotnames:
                 grafana_plot_path = f"{args.output_dir}{grafana_plotname}"
                 if os.path.exists(grafana_plot_path):
