@@ -490,7 +490,7 @@ def plot_noises(prev_noises, noises, i_evt, mask_inactive=True,
                 for ch in channels_idx[mask]:
                     ax.errorbar(
                         ch, median[ch], yerr=[[lower[ch]], [upper[ch]]],
-                        fmt='.', color='b', markersize=3,
+                        fmt='.', color='b', markersize=4,
                         linewidth=0.5, capsize=5, capthick=1,
                         alpha=alphas[ch]
                     )
@@ -566,7 +566,7 @@ def plot_baselines(prev_baselines, baselines, i_evt, mask_inactive=True,
                 for ch in channels_idx[mask]:
                     ax.errorbar(
                         ch, median[ch], yerr=[[lower[ch]], [upper[ch]]],
-                        fmt='.', color='b', markersize=3,
+                        fmt='.', color='b', markersize=4,
                         linewidth=0.5, capsize=5, capthick=1,
                         alpha=alphas[ch]
                     )
@@ -790,7 +790,7 @@ def plot_clipped_fraction(prev_clipped_evts, clipped_evts, title=None,
             ax.errorbar(
                 idx, clipped_pct[idx],
                 yerr=[[err_low[idx]], [err_up[idx]]],
-                fmt='.', ecolor=color, markersize=3,
+                fmt='.', ecolor=color, markersize=4,
                 capsize=4, linewidth=1, color=color,
                 alpha=alphas[idx]
             )
@@ -879,7 +879,7 @@ def plot_clipped_tpc_fraction(prev_clipped_evts, clipped_evts, max_vals, ths,
             ax.errorbar(
                 idx, clipped_pct[idx],
                 yerr=[[err_low[idx]], [err_up[idx]]],
-                fmt='.', ecolor=color, markersize=3,
+                fmt='.', ecolor=color, markersize=4,
                 capsize=4, linewidth=1, color=color,
                 alpha=alphas[idx]
             )
@@ -957,7 +957,7 @@ def plot_clipped_epcb_fraction(prev_clipped_evts, clipped_evts, max_vals, ths,
             ax.errorbar(
                 idx, clipped_pct[idx],
                 yerr=[[err_low[idx]], [err_up[idx]]],
-                fmt='.', ecolor=color, markersize=3,
+                fmt='.', ecolor=color, markersize=4,
                 capsize=4, linewidth=1, color=color,
                 alpha=alphas[idx]
             )
@@ -1030,7 +1030,7 @@ def plot_clipped_ch_fraction(prev_clipped_evts, clipped_evts, max_vals, ths,
             ax.errorbar(
                 idx, clipped_pct[idx],
                 yerr=[[err_low[idx]], [err_up[idx]]],
-                fmt='.', ecolor=color, markersize=3,
+                fmt='.', ecolor=color, markersize=4,
                 capsize=4, linewidth=1, color=color,
                 alpha=alphas[idx]
             )
@@ -1116,7 +1116,7 @@ def plot_neg_tpc_fraction(prev_neg_evts, neg_evts, max_vals, ths,
         ax.errorbar(
             idx, neg_pct[idx],
             yerr=[[err_low[idx]], [err_up[idx]]],
-            fmt='.', ecolor=color, markersize=3,
+            fmt='.', ecolor=color, markersize=4,
             capsize=4, linewidth=1, color=color,
             alpha=alphas[idx]
         )
@@ -1195,7 +1195,7 @@ def plot_neg_epcb_fraction(prev_neg_evts, neg_evts, max_vals, ths,
         ax.errorbar(
             idx, neg_pct[idx],
             yerr=[[err_low[idx]], [err_up[idx]]],
-            fmt='.', ecolor=color, markersize=3,
+            fmt='.', ecolor=color, markersize=4,
             capsize=4, linewidth=1, color=color,
             alpha=alphas[idx]
         )
