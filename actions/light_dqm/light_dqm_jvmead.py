@@ -16,6 +16,7 @@
 
 python light_dqm_jvmead.py
                        --input_path /global/cfs/cdirs/dune/www/data/2x2/nearline/flowed_light/data_bin004/
+                       --name_conv mpd_run_hvramp_rctl_105_p
                        --output_dir dqm_plots/
                        --units ADC16
                        --ptps16bit 150
@@ -53,6 +54,7 @@ except ImportError:
 def parse_args():
     parser = argparse.ArgumentParser(description="Process and plot DUNE light file data.")
     parser.add_argument('--input_path', type=str, default='.', help='Path to input file')
+    parser.add_argument('--name_conv', type=str, default='mpd_run_hvramp_rctl_105_p', help='Naming convention for input files')
     parser.add_argument('--output_dir', type=str, default='.', help='Directory to save output plots')
     parser.add_argument('--units', type=str, default='ADC16', choices=['ADC16', 'ADC14', 'V'], help='Units for waveform')
     parser.add_argument('--ptps16bit', type=int, default=150, help='Peak-to-peak threshold for 16-bit ADC')
@@ -1241,6 +1243,8 @@ def read_from_json(file_indices, output_dir, filename):
     Read data from JSON file, loop over file indices, add in quadrature.
     If no matching entries are found, return None.
     """
+    if file_indices is None or len(file_indices) == 0:
+        return None
     data_c = []
     data_l = []
     data_u = []
@@ -1251,7 +1255,8 @@ def read_from_json(file_indices, output_dir, filename):
                 data_c.append(entry['data_c'])
                 data_l.append(entry['data_l'])
                 data_u.append(entry['data_u'])
-    if not data_c:
+    # if data_c is empty return none
+    if len(data_c) == 0:
         return None
     data_c = np.array(data_c)
     data_l = np.array(data_l)
@@ -1299,6 +1304,8 @@ def read_eff_from_json(file_indices, output_dir, filename):
     Read efficiency data from JSON file, loop over file indices,
     combine the passes and totals
     """
+    if file_indices is None or len(file_indices) == 0:
+        return None
     passed = []
     totals = []
     with open(output_dir+filename, 'r') as f:
@@ -1308,6 +1315,9 @@ def read_eff_from_json(file_indices, output_dir, filename):
                 passed.append(entry['pass'])
                 totals.append(entry['totals'])
         f.close()
+    # if passed is empty return none
+    if len(passed) == 0:
+        return None
     # sum
     passed = np.sum(np.array(passed), axis=0)
     totals = np.sum(np.array(totals), axis=0)
@@ -1341,7 +1351,9 @@ def main():
     for i_file in files_arr:
 
         # Construct the filename based on the input path and file index
-        filename = f'{args.input_path}mpd_run_hvramp_rctl_105_p{i_file}.FLOW.hdf5'
+        # mpd_run_hvramp_rctl_105_p
+        # mpd_run_dbg_rctl_
+        filename = f'{args.input_path}{args.name_conv}{i_file}.FLOW.hdf5'
         print(f"Processing file: {filename} with units: {args.units}")
         ptps = get_ptps(args.units)
         file = h5py.File(filename, 'r')
@@ -1365,6 +1377,8 @@ def main():
         # files for comparison
         if args.ncomp == -1 or args.ncomp > i_file:
             ncomps = np.arange(0, i_file, 1)
+        elif args.ncomp == 0:
+            ncomps = np.array([])
         else:
             ncomps = np.arange(i_file-args.ncomp, i_file, 1)
 
@@ -1431,7 +1445,7 @@ def main():
         # Plot noise
         prev_noises = read_from_json(
             ncomps, args.output_dir, 'noises.json'
-        ) if i_file > 0 else None
+        ) if i_file - args.start_file > 0 else None
         noise_c, noise_l, noise_u = plot_noises(prev_noises,
             strig_noises, i_evt=np.arange(0, strig_baselines.shape[0], 1),
             mask_inactive=False, output_name='plot_2.pdf'
@@ -1442,7 +1456,7 @@ def main():
         # Plot baselines
         prev_baselines = read_from_json(
             ncomps, args.output_dir, 'baselines.json'
-        ) if i_file > 0 else None
+        ) if i_file - args.start_file > 0 else None
         bline_c, bline_l, bline_u = plot_baselines(prev_baselines,
             strig_baselines, i_evt=np.arange(0, strig_baselines.shape[0], 1),
             mask_inactive=False, output_name='plot_3.pdf'
@@ -1455,7 +1469,7 @@ def main():
         # beam events
         prev_beam_clipped_inputs = read_eff_from_json(
             ncomps, args.output_dir, 'clipped_total_beam.json'
-        ) if i_file > 0 else None
+        ) if i_file - args.start_file > 0 else None
         prev_beam_clipped = clopper_pearson(
             prev_beam_clipped_inputs[0], prev_beam_clipped_inputs[1]
         ) if prev_beam_clipped_inputs is not None else None
@@ -1468,7 +1482,7 @@ def main():
         # self-trigger
         prev_strig_clipped_inputs = read_eff_from_json(
             ncomps, args.output_dir, 'clipped_total_self.json'
-        ) if i_file > 0 else None
+        ) if i_file - args.start_file > 0 else None
         prev_strig_clipped = clopper_pearson(
             prev_strig_clipped_inputs[0], prev_strig_clipped_inputs[1]
         ) if prev_strig_clipped_inputs is not None else None
@@ -1484,7 +1498,7 @@ def main():
         # beam trigger
         prev_beam_clipped_inputs = read_eff_from_json(
             ncomps, args.output_dir, 'clipped_tpc_beam.json'
-        ) if i_file > 0 else None
+        ) if i_file - args.start_file > 0 else None
         prev_beam_clipped = clopper_pearson(
             prev_beam_clipped_inputs[0], prev_beam_clipped_inputs[1]
         ) if prev_beam_clipped_inputs is not None else None
@@ -1497,7 +1511,7 @@ def main():
         # self-trigger
         prev_strig_clipped_inputs = read_eff_from_json(
             ncomps, args.output_dir, 'clipped_tpc_self.json'
-        ) if i_file > 0 else None
+        ) if i_file - args.start_file > 0 else None
         prev_strig_clipped = clopper_pearson(
             prev_strig_clipped_inputs[0], prev_strig_clipped_inputs[1]
         ) if prev_strig_clipped_inputs is not None else None
@@ -1513,7 +1527,7 @@ def main():
         # beam trigger
         prev_beam_clipped_inputs = read_eff_from_json(
             ncomps, args.output_dir, 'clipped_epcb_beam.json'
-        ) if i_file > 0 else None
+        ) if i_file - args.start_file > 0 else None
         prev_beam_clipped = clopper_pearson(
             prev_beam_clipped_inputs[0], prev_beam_clipped_inputs[1]
         ) if prev_beam_clipped_inputs is not None else None
@@ -1526,7 +1540,7 @@ def main():
         # self-trigger
         prev_strig_clipped_inputs = read_eff_from_json(
             ncomps, args.output_dir, 'clipped_epcb_self.json'
-        ) if i_file > 0 else None
+        ) if i_file - args.start_file > 0 else None
         prev_strig_clipped = clopper_pearson(
             prev_strig_clipped_inputs[0], prev_strig_clipped_inputs[1]
         ) if prev_strig_clipped_inputs is not None else None
@@ -1542,7 +1556,7 @@ def main():
         # beam trigger
         prev_beam_clipped_inputs = read_eff_from_json(
             ncomps, args.output_dir, 'clipped_ch_beam.json'
-        ) if i_file > 0 else None
+        ) if i_file - args.start_file > 0 else None
         prev_beam_clipped = clopper_pearson(
             prev_beam_clipped_inputs[0], prev_beam_clipped_inputs[1]
         ) if prev_beam_clipped_inputs is not None else None
@@ -1555,7 +1569,7 @@ def main():
         # self-trigger
         prev_strig_clipped_inputs = read_eff_from_json(
             ncomps, args.output_dir, 'clipped_ch_self.json'
-        ) if i_file > 0 else None
+        ) if i_file - args.start_file > 0 else None
         prev_strig_clipped = clopper_pearson(
             prev_strig_clipped_inputs[0], prev_strig_clipped_inputs[1]
         ) if prev_strig_clipped_inputs is not None else None
@@ -1571,7 +1585,7 @@ def main():
         # beam trigger
         prev_beam_negs_inputs = read_eff_from_json(
             ncomps, args.output_dir, 'negatives_tpc_beam.json'
-        ) if i_file > 0 else None
+        ) if i_file - args.start_file > 0 else None
         prev_beam_negs = clopper_pearson(
             prev_beam_negs_inputs[0], prev_beam_negs_inputs[1]
         ) if prev_beam_negs_inputs is not None else None
@@ -1584,7 +1598,7 @@ def main():
         # self-trigger
         prev_strig_negs_inputs = read_eff_from_json(
             ncomps, args.output_dir, 'negatives_tpc_self.json'
-        ) if i_file > 0 else None
+        ) if i_file - args.start_file > 0 else None
         prev_strig_negs = clopper_pearson(
             prev_strig_negs_inputs[0], prev_strig_negs_inputs[1]
         ) if prev_strig_negs_inputs is not None else None
@@ -1601,7 +1615,7 @@ def main():
         # beam trigger
         prev_beam_negs_inputs = read_eff_from_json(
             ncomps, args.output_dir, 'negatives_epcb_beam.json'
-        ) if i_file > 0 else None
+        ) if i_file - args.start_file > 0 else None
         prev_beam_negs = clopper_pearson(
             prev_beam_negs_inputs[0], prev_beam_negs_inputs[1]
         ) if prev_beam_negs_inputs is not None else None
@@ -1614,7 +1628,7 @@ def main():
         # self-trigger
         prev_strig_negs_inputs = read_eff_from_json(
             ncomps, args.output_dir, 'negatives_epcb_self.json'
-        ) if i_file > 0 else None
+        ) if i_file - args.start_file > 0 else None
         prev_strig_negs = clopper_pearson(
             prev_strig_negs_inputs[0], prev_strig_negs_inputs[1]
         ) if prev_strig_negs_inputs is not None else None
