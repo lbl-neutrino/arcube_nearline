@@ -4,7 +4,7 @@ stage=flowed_light
 
 source $(dirname $BASH_SOURCE)/../lib/init.inc.sh
 
-inbase=$data_root/LRS
+inbase=$data_root/LRS_run2
 
 inpath=$1; shift
 
