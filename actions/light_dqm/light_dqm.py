@@ -68,7 +68,7 @@ def parse_args():
     parser.add_argument('--output_dir', type=str, default='dqm_plots/', help='Directory to save final output plots')
     parser.add_argument('--tmp_dir', type=str, default='tmp/', help='Directory to save temporary output plots')
     parser.add_argument('--units', type=str, default='ADC16', choices=['ADC16', 'ADC14', 'V'], help='Units for waveform')
-    parser.add_argument('--ptps16bit', type=int, default=150, help='Peak-to-peak threshold for 16-bit ADC')
+    parser.add_argument('--ptps16bit', type=int, default=500, help='Peak-to-peak threshold for 16-bit ADC')
     parser.add_argument('--start_run', type=int, default=0, help='Start run for processing')
     parser.add_argument('--nfiles', type=int, default=1, help='Number of files to process')
     parser.add_argument('--ncomp', type=int, default=-1, help='Number of previous files to compare')
@@ -1509,7 +1509,7 @@ def main():
         
         nevents_total = file["light/wvfm/data"]['samples'].shape[0]
         if args.max_evts > nevents_total:
-            raise ValueError("args.max_evts: Total number of events to process is less than the number of events in the file")
+            raise ValueError(f"args.max_evts: Total number of events to process {args.max_evts} is less than the number of events in the file {nevents_total}")
         # select evenly spaced indices up to max_evts
         sel_idx = np.linspace(0, nevents_total - 1, args.max_evts, dtype=int)
         
