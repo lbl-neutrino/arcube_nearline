@@ -1799,7 +1799,7 @@ def main():
         )
         # plotting flatlined channels
         plot_flatline_mask(
-            flatlined, cs, output_name=f'light_dqm_flatline_{args.file_syntax}_{args.start_run}.pdf',
+            flatlined, cs, output_name=f'light_dqm_flatline_{args.file_syntax}{args.start_run}.pdf',
             times = (start_central, end_central)
         )
         # checking for baseline fluctuations
@@ -1809,7 +1809,7 @@ def main():
         )
         # plotting baseline fluctuations
         plot_baseline_mask(
-            baselined, cs, output_name=f'light_dqm_baseline_{args.file_syntax}_{args.start_run}.pdf',
+            baselined, cs, output_name=f'light_dqm_baseline_{args.file_syntax}{args.start_run}.pdf',
             times = (start_central, end_central)
         )
 
@@ -1868,7 +1868,7 @@ def main():
                 merger.append(plot_path)
                 os.remove(plot_path)
 
-        merged_pdf_path = os.path.join(args.output_dir, f"light_dqm_main_{args.file_syntax}_{args.start_run}.pdf")
+        merged_pdf_path = os.path.join(args.output_dir, f"light_dqm_main_{args.file_syntax}{args.start_run}.pdf")
         merger.write(merged_pdf_path)
         merger.close()
 
