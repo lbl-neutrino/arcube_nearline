@@ -46,14 +46,14 @@ if [[ "$(stat -c %s "$inpath")" -gt 50000000000 ]]; then
 fi
 
 # light_dqm.py expects the trailing slash on input_path
-python3 light_dqm.py --input_path "$inbase/$reldir/" \
-                     --output_dir "$plot_outbase" \
-                     --tmp_dir "$plot_outbase/tmp" \
-                     --file_syntax "$file_syntax" \
-                     --output_dir "$(dirname "$plotpath1")" \
-                     --channel_status_file "$channel_status"\
-                     --start_run $start_run \
-                     2>&1 | tee "$logpath"
+# python3 light_dqm.py --input_path "$inbase/$reldir/" \
+#                      --output_dir "$plot_outbase" \
+#                      --tmp_dir "$plot_outbase/tmp" \
+#                      --file_syntax "$file_syntax" \
+#                      --output_dir "$(dirname "$plotpath1")" \
+#                      --channel_status_file "$channel_status"\
+#                      --start_run $start_run \
+#                      2>&1 | tee "$logpath"
 
 
 latest_outbase="$plot_outbase/latest"
@@ -65,6 +65,6 @@ if [ ! -d "$latest_outbase" ]; then
     mkdir -p "$latest_outbase"
 fi
 
-ln -sf $plotpath1 $latest_path1
-ln -sf $plotpath2 $latest_path2
-ln -sf $plotpath3 $latest_path3
+echo ln -sf $plotpath1 $latest_path1
+echo ln -sf $plotpath2 $latest_path2
+echo ln -sf $plotpath3 $latest_path3
