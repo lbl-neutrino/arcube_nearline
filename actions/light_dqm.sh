@@ -24,17 +24,17 @@ start_run=$(basename "$inpath" .FLOW.hdf5 | sed -n 's/.*[^0-9]\([0-9]\+\)$/\1/p'
 
 get_outpath() {
     outbase=$1
-    ext=$2
-    outname=$(basename "$inpath" .hdf5).light_dqm.$ext
+    tag=$2
+    outname=light_dqm_${tag}_$(basename "$inpath" .FLOW.hdf5).pdf
     mkdir -p "$outbase/$reldir"
     realpath "$outbase/$reldir/$outname"
 }
 
 channel_status=$(dirname "${BASH_SOURCE[0]}")/light_dqm/channel_status.csv
 
-plotpath1=$(get_outpath "$plot_outbase" main.pdf)
-plotpath2=$(get_outpath "$plot_outbase" baseline.pdf)
-plotpath3=$(get_outpath "$plot_outbase" flatline.pdf)
+plotpath1=$(get_outpath "$plot_outbase" main)
+plotpath2=$(get_outpath "$plot_outbase" baseline)
+plotpath3=$(get_outpath "$plot_outbase" flatline)
 
 logpath=$(get_outpath "$log_outbase" log)
 
