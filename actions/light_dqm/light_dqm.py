@@ -1945,5 +1945,5 @@ def main():
     footer()
     print(f"Time taken all files: {time.time() - start_time:.2f} seconds")
 
-if _name_ == "_main_":
+if __name__ == "__main__":
     main()
