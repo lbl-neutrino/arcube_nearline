@@ -58,8 +58,8 @@ python3 light_dqm.py --input_path "$inbase/$reldir/" \
 
 latest_outbase="$plot_outbase/latest"
 latest_path1="$latest_outbase/latest_main.pdf"
-latest_path2="$latest_outbase/latest_baseline.png"
-latest_path3="$latest_outbase/latest_dead_chan.png"
+latest_path2="$latest_outbase/latest_baseline.pdf"
+latest_path3="$latest_outbase/latest_dead_chan.pdf"
 
 if [ ! -d "$latest_outbase" ]; then
     mkdir -p "$latest_outbase"
