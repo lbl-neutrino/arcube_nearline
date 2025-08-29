@@ -25,7 +25,7 @@ start_run=$(basename "$inpath" .FLOW.hdf5 | sed -n 's/.*[^0-9]\([0-9]\+\)$/\1/p'
 get_outpath() {
     outbase=$1
     tag=$2
-    outname=light_dqm_$tag.$(basename "$inpath" .FLOW.hdf5).pdf
+    outname=light_dqm_${tag}_$(basename "$inpath" .FLOW.hdf5).pdf
     mkdir -p "$outbase/$reldir"
     realpath "$outbase/$reldir/$outname"
 }
