@@ -1832,6 +1832,7 @@ def main():
 
         ### GRAFANA PLOTS ###
 
+
         try:
             # check for flatlining channels
             flatlined = check_flatline(
@@ -1916,7 +1917,7 @@ def main():
                 merger.append(plot_path)
                 os.remove(plot_path)
 
-        merged_pdf_path = os.path.join(args.output_dir, f"light_dqm_main_{args.file_syntax}_{args.start_run}.pdf")
+        merged_pdf_path = os.path.join(args.output_dir, f"light_dqm_main_{args.file_syntax}{args.start_run}.pdf")
         merger.write(merged_pdf_path)
         merger.close()
 
