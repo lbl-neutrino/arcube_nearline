@@ -4,9 +4,13 @@ stage=light_dqm
 
 source $(dirname $BASH_SOURCE)/../lib/init.inc.sh
 
+# light_dqm.py expects a trailing slash
 inbase=/global/cfs/cdirs/dune/www/data/2x2/nearline_run2/flowed_light
 
+# For example,
 inpath=$1; shift
+indir=$(dirname "$inpath")
+reldir=$(echo "$indir" | sed "s|^$inbase/||")
 
 # Remove the extension and the final numbers. The final numbers are either the
 # run number (123 if the filename is like "mpd_run_foo_rctl_123.FLOW.hdf5") or
@@ -21,8 +25,6 @@ start_run=$(basename "$inpath" .FLOW.hdf5 | sed -n 's/.*[^0-9]\([0-9]\+\)$/\1/p'
 get_outpath() {
     outbase=$1
     ext=$2
-    indir=$(dirname "$inpath")
-    reldir=$(echo "$indir" | sed "s|^$inbase/||")
     outname=$(basename "$inpath" .hdf5).light_dqm.$ext
     mkdir -p "$outbase/$reldir"
     realpath "$outbase/$reldir/$outname"
@@ -42,12 +44,13 @@ if [[ "$(stat -c %s "$inpath")" -gt 50000000000 ]]; then
     echo "File is larger than 50 GB; bailing"
     exit 1
 fi
-python3 light_dqm.py --input_path "$inbase" \
+
+# light_dqm.py expects the trailing slash on input_path
+python3 light_dqm.py --input_path "$inbase/$reldir/" \
                      --output_dir "$plot_outbase" \
                      --tmp_dir "$plot_outbase/tmp" \
                      --file_syntax "$file_syntax" \
-                     --output_dir $get_outpath \
-                     --tmp_dir 
+                     --output_dir "$(dirname "$plotpath1")" \
                      --channel_status_file "$channel_status"\
                      --start_run $start_run \
                      2>&1 | tee "$logpath"
