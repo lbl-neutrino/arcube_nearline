@@ -4,12 +4,19 @@ stage=light_dqm
 
 source $(dirname $BASH_SOURCE)/../lib/init.inc.sh
 
-inbase=/global/cfs/cdirs/dune/www/data/2x2/nearline_run2/flowed_light/warm_commissioning
+inbase=/global/cfs/cdirs/dune/www/data/2x2/nearline_run2/flowed_light
 
-filesyntax=$1; shift
-startrun=$1; shift
-inpath=$inbase
+inpath=$1; shift
 
+# Remove the extension and the final numbers. The final numbers are either the
+# run number (123 if the filename is like "mpd_run_foo_rctl_123.FLOW.hdf5") or
+# the subrun number (789 if the filename is like
+# "mpd_run_bar_rctl_456_p789.FLOW.hdf5"). We end up with a file_syntax of either
+# "mpd_run_foo_rctl_" or "mpd_run_bar_rctl_456_p"
+file_syntax=$(basename "$inpath" .FLOW.hdf5 | sed 's/[0-9]\+$//')
+
+# Extract the same final numbers we stripped out above (welcome to regex hell)
+start_run=$(basename "$inpath" .FLOW.hdf5 | sed -n 's/.*[^0-9]\([0-9]\+\)$/\1/p')
 
 get_outpath() {
     outbase=$1
@@ -42,7 +49,7 @@ python3 light_dqm.py --input_path "$inbase" \
                      --output_dir $get_outpath \
                      --tmp_dir 
                      --channel_status_file "$channel_status"\
-                     --start_run $startrun \
+                     --start_run $start_run \
                      2>&1 | tee "$logpath"
 
 
