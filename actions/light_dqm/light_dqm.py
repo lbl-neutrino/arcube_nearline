@@ -1584,7 +1584,7 @@ def main():
             del wvfms_v
             plot_noise_spectra_epcb(
                 freq_bins, noise_spectrum, None, None,
-                skip_bad_channels=True, nevts=process_powesp_evts,
+                skip_bad_channels=True, nevts=process_powsp_evts,
                 output_name='plot5_powspec.pdf',
             )
 
