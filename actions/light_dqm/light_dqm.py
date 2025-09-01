@@ -226,7 +226,7 @@ def check_flatline(max_values, threshold=0.1):
 
 # function to plot an 8x64 grid with red cross for flatlined, green circle for not flatlined
 def plot_flatline_mask(flatline_mask, channel_status=None, times=None,
-                       output_name='flatline_mask.pdf'):
+                       output_name='flatline_mask.png'):
     n_adcs = flatline_mask.shape[0]
     n_channels = flatline_mask.shape[1]
     fig, ax = plt.subplots(figsize=(14, 3))
@@ -280,9 +280,8 @@ def plot_flatline_mask(flatline_mask, channel_status=None, times=None,
     fig.set_size_inches(16, 4)
     # Increase the top margin to fit the legend
     plt.subplots_adjust(top=0.82)
-    output_pdf = f"{args.output_dir}/{output_name}"
-    with PdfPages(output_pdf) as pdf:
-        pdf.savefig()
+    output = f"{args.output_dir}/{output_name}"
+    plt.savefig(output)
 
 
 
@@ -334,7 +333,7 @@ def check_baseline(prev_baseline, current_baseline, units='ADC16', threshold=200
 
 
 def plot_baseline_mask(baseline_mask, channel_status=None, times=None,
-                       output_name='baseline_mask.pdf'):
+                       output_name='baseline_mask.png'):
     """
     Plot an 8x64 grid with red cross for baseline outliers, green circle for normal.
     Optionally mark known bad channels with a black dot.
@@ -388,10 +387,9 @@ def plot_baseline_mask(baseline_mask, channel_status=None, times=None,
     # Make the figure slightly larger to fit the legend
     fig.set_size_inches(16, 4)
     plt.subplots_adjust(top=0.82)
-    output_pdf = f"{args.output_dir}/{output_name}"
-    with PdfPages(output_pdf) as pdf:
-        pdf.savefig()
-        plt.close()
+    output = f"{args.output_dir}/{output_name}"
+    pdf.savefig(output)
+
 
 
 ### DQM PLOTS ###
@@ -1565,8 +1563,8 @@ def main():
             process_powsp_evts = len(wvfms_v)
        
             freq_bins, noise_spectra, noise_spectrum, upper, lower = get_noise_spectra(
-                wvfms_v, max_mask
-            )
+                wvfms_v)
+                #, max_mask)
             rois_mhz = np.array([0.5, 1.8, 4.6, 7.1, 8.5, 10, 11.5, 19, 20, 25, 30])
             # convert to index from frequency bins
             rois_bins = np.array([np.argmin(np.abs(freq_bins*1e-6 - roi)) for roi in rois_mhz])
@@ -1584,18 +1582,18 @@ def main():
             del wvfms_v
             plot_noise_spectra_epcb(
                 freq_bins, noise_spectrum, None, None,
-                skip_bad_channels=True, nevts=process_powesp_evts,
+                skip_bad_channels=True, nevts=process_powsp_evts,
                 output_name='plot5_powspec.pdf',
             )
 
         except Exception as e:
             print(f"Failed to plot power spectra")
             traceback.print_exc()
-        #plot_noise_spectra_channels(
+        # plot_noise_spectra_channels(
         #    freq_bins, noise_spectrum, None, None,
-        #    skip_bad_channels=True, nevts=args.powspec_nevts,
-        #    output_name='plot_0.pdf'
-        #)
+        #    skip_bad_channels=True, nevts=process_powsp_evts,
+        #    output_name='noise_channels.pdf'
+        # )
         print(f"Noise spectra calculated for file: {filename}")
 
         try:
@@ -1840,7 +1838,7 @@ def main():
             )
             # plotting flatlined channels
             plot_flatline_mask(
-                flatlined, cs, output_name=f'light_dqm_flatline_{args.file_syntax}{args.start_run}.pdf',
+                flatlined, cs, output_name=f'{args.file_syntax}{args.start_run}_light_dqm_flatline.png',
                 times = (start_central, end_central)
             )
         except Exception as e:
@@ -1855,7 +1853,7 @@ def main():
             )
             # plotting baseline fluctuations
             plot_baseline_mask(
-                baselined, cs, output_name=f'light_dqm_baseline_{args.file_syntax}{args.start_run}.pdf',
+                baselined, cs, output_name=f'{args.file_syntax}{args.start_run}_light_dqm_baseline.png',
                 times = (start_central, end_central)
             )
         except Exception as e:
@@ -1917,25 +1915,25 @@ def main():
                 merger.append(plot_path)
                 os.remove(plot_path)
 
-        merged_pdf_path = os.path.join(args.output_dir, f"light_dqm_main_{args.file_syntax}{args.start_run}.pdf")
+        merged_pdf_path = os.path.join(args.output_dir, f"{args.file_syntax}{args.start_run}_light_dqm_main.pdf")
         merger.write(merged_pdf_path)
         merger.close()
 
-        if args.merge_grafana_plots:
-            # Append all Grafana plot PDFs to the merger
-            grafana_plotnames = sorted(
-                glob.glob(os.path.join(args.output_dir_dir, "light_dqm_baseline*.pdf"))
-                + glob.glob(os.path.join(args.output_dir_dir, "light_dqm_flatline*.pdf"))
-            )
-            for grafana_plotname in grafana_plotnames:
-                grafana_plot_path = f"{args.output_dir}{grafana_plotname}"
-                if os.path.exists(grafana_plot_path):
-                    merger_grafana.append(grafana_plot_path)
-                    os.remove(grafana_plot_path)
-            merged_grafana_pdf_path = f"{args.output_dir}merged_grafana_plots_{args.start_run}.pdf"
-            merger_grafana.write(merged_grafana_pdf_path)
-            merger_grafana.close()
-            print(f"Merged Grafana plots saved to: {merged_grafana_pdf_path}")
+        # if args.merge_grafana_plots: #TO-DO: change pngs to pdfs if you want this option
+            # # Append all Grafana plot PDFs to the merger
+            # grafana_plotnames = sorted(
+            #     glob.glob(os.path.join(args.output_dir_dir, "*light_dqm_baseline.pdf"))
+            #     + glob.glob(os.path.join(args.output_dir_dir, "*light_dqm_flatline.pdf"))
+            # )
+            # for grafana_plotname in grafana_plotnames:
+            #     grafana_plot_path = f"{args.output_dir}{grafana_plotname}"
+            #     if os.path.exists(grafana_plot_path):
+            #         merger_grafana.append(grafana_plot_path)
+            #         os.remove(grafana_plot_path)
+            # merged_grafana_pdf_path = f"{args.output_dir}merged_grafana_plots_{args.start_run}.pdf"
+            # merger_grafana.write(merged_grafana_pdf_path)
+            # merger_grafana.close()
+            # print(f"Merged Grafana plots saved to: {merged_grafana_pdf_path}")
 
         # timing for file processing
         print(f"Processing completed for file: {filename}")
