@@ -388,7 +388,7 @@ def plot_baseline_mask(baseline_mask, channel_status=None, times=None,
     fig.set_size_inches(16, 4)
     plt.subplots_adjust(top=0.82)
     output = f"{args.output_dir}/{output_name}"
-    pdf.savefig(output)
+    plt.savefig(output)
 
 
 
