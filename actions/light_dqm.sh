@@ -25,16 +25,17 @@ start_run=$(basename "$inpath" .FLOW.hdf5 | sed -n 's/.*[^0-9]\([0-9]\+\)$/\1/p'
 get_outpath() {
     outbase=$1
     tag=$2
-    outname=$(basename "$inpath" .FLOW.hdf5)_light_dqm_${tag}.png
+    ext=$3
+    outname=$(basename "$inpath" .FLOW.hdf5)_light_dqm_${tag}.$ext
     mkdir -p "$outbase/$reldir"
     realpath "$outbase/$reldir/$outname"
 }
 
 channel_status=$(dirname "${BASH_SOURCE[0]}")/light_dqm/channel_status.csv
 
-plotpath1=$(get_outpath "$plot_outbase" main)
-plotpath2=$(get_outpath "$plot_outbase" baseline)
-plotpath3=$(get_outpath "$plot_outbase" flatline)
+plotpath1=$(get_outpath "$plot_outbase" main pdf)
+plotpath2=$(get_outpath "$plot_outbase" baseline png)
+plotpath3=$(get_outpath "$plot_outbase" flatline png)
 
 logpath=$(get_outpath "$log_outbase" log)
 
@@ -57,7 +58,7 @@ python3 light_dqm.py --input_path "$inbase/$reldir/" \
 
 
 latest_outbase="$plot_outbase/latest"
-latest_path1="$latest_outbase/latest_main.png"
+latest_path1="$latest_outbase/latest_main.pdf"
 latest_path2="$latest_outbase/latest_baseline.png"
 latest_path3="$latest_outbase/latest_dead_chan.png"
 
