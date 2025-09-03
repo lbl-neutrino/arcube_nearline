@@ -65,7 +65,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Process and plot DUNE light file data.")
     parser.add_argument('--input_path', type=str, default='.', help='Path to input file')
     parser.add_argument('--file_syntax', type=str, default='.', help='File name syntax')
-    parser.add_argument('--channel_status_file', type=str, default='actions/light_dqm/channel_status.csv', help='Channel status file')
+    parser.add_argument('--channel_status_file', type=str, default='actions/light_dqm/channel_status_warmRun2.csv', help='Channel status file')
     parser.add_argument('--output_dir', type=str, default='dqm_plots/', help='Directory to save final output plots')
     parser.add_argument('--tmp_dir', type=str, default='tmp/', help='Directory to save temporary output plots')
     parser.add_argument('--units', type=str, default='ADC16', choices=['ADC16', 'ADC14', 'V'], help='Units for waveform')
@@ -245,14 +245,13 @@ def plot_flatline_mask(flatline_mask, channel_status=None, times=None,
             # Skip inactive channels
             if channel_status is not None and channel_status[i, j] == -1:
                 continue
-            if flatline_mask[i, j]:
-                # Red cross for flatlined
-                ax.plot(j, i, marker='x', color='red', markersize=12, markeredgewidth=2)
-            else:
-                # Green circle for not flatlined
-                ax.plot(j, i, marker='o', color='green', markersize=10, fillstyle='none')
+            ax.plot(j, i, marker='o', color='green', markersize=10, fillstyle='none')
             if channel_status is not None and channel_status[i, j] != 0:
                 ax.plot(j, i, marker='.', color='black', markersize=10)
+            elif flatline_mask[i, j]:
+                # Red cross for flatlined
+                    ax.plot(j, i, marker='x', color='red', markersize=12, markeredgewidth=2)
+
     plt.title("Alive and dead channels", y=1.18, fontsize=14)
     plt.tight_layout()
 
@@ -355,14 +354,13 @@ def plot_baseline_mask(baseline_mask, channel_status=None, times=None,
             # Skip inactive channels
             if channel_status is not None and channel_status[i, j] == -1:
                 continue
-            if baseline_mask[i, j]:
-                # Red cross for baseline outlier
-                ax.plot(j, i, marker='x', color='red', markersize=12, markeredgewidth=2)
-            else:
-                # Green circle for normal
-                ax.plot(j, i, marker='o', color='green', markersize=10, fillstyle='none')
+            ax.plot(j, i, marker='o', color='green', markersize=10, fillstyle='none')
             if channel_status is not None and channel_status[i, j] != 0:
                 ax.plot(j, i, marker='.', color='black', markersize=10)
+            elif baseline_mask[i, j]:
+                # Red cross for baseline outlier
+                ax.plot(j, i, marker='x', color='red', markersize=12, markeredgewidth=2)
+    
     plt.title("Channels baseline status", y=1.18, fontsize=14)
     plt.tight_layout()
     # add faded line at x=31.5
