@@ -29,14 +29,13 @@ fi
 
 cd $ROOT_OF_ARCUBE_NEARLINE/_install/ndlar_flow
 
-workflow1='yamls/proto_nd_flow/workflows/charge/charge_event_building.yaml'
-workflow2='yamls/proto_nd_flow/workflows/charge/charge_event_reconstruction.yaml'
-workflow3='yamls/proto_nd_flow/workflows/combined/combined_reconstruction.yaml'
-workflow4='yamls/proto_nd_flow/workflows/charge/prompt_calibration.yaml'
-# workflow5='yamls/proto_nd_flow/workflows/charge/final_calibration.yaml'
+workflow1='yamls/proto_nd_flow/workflows/charge/charge_event_building_data.yaml'
+workflow2='yamls/proto_nd_flow/workflows/charge/charge_event_reconstruction_data.yaml'
+workflow3='yamls/proto_nd_flow/workflows/combined/combined_reconstruction_data.yaml'
+workflow4='yamls/proto_nd_flow/workflows/charge/prompt_calibration_data.yaml'
+workflow5='yamls/proto_nd_flow/workflows/charge/final_calibration_data.yaml'
 
 rm -f "$flowpath"
 
-# time h5flow -c "$workflow1" "$workflow2" "$workflow3" "$workflow4" "$workflow5" \
-time h5flow -c "$workflow1" "$workflow2" "$workflow3" "$workflow4" \
+time h5flow -c "$workflow1" "$workflow2" "$workflow3" "$workflow4" "$workflow5" \
     -i "$inpath" -o "$flowpath" 2>&1 | tee "$logpath"
