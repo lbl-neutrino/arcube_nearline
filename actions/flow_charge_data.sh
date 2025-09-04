@@ -22,8 +22,8 @@ get_outpath() {
 flowpath=$(get_outpath "$data_outbase" FLOW.hdf5)
 logpath=$(get_outpath "$log_outbase" log)
 
-if [[ "$(stat -c %s "$inpath")" -gt 1000000000 ]]; then
-    echo "File is larger than 1 GB; bailing"
+if [[ "$(stat -c %s "$inpath")" -gt 4000000000 ]]; then
+    echo "File is larger than 4 GB; bailing"
     exit 1
 fi
 
