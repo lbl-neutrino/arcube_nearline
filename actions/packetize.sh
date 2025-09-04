@@ -24,6 +24,13 @@ mkdir -p "$(dirname "$outpath")" "$(dirname "$logpath")"
 
 rm -f "$outpath"
 
+# If files were directly recorded in packet format, just copy them
+if [[ "$(basename "$inpath")" == "packet-"* ]]; then
+    cp "$inpath" "$outpath"
+    echo COPIED "$inpath" "$outpath" | tee "$logpath"
+    exit
+fi
+
 convert_rawhdf5_to_hdf5.py \
     --direct \
     --input_filename "$inpath" \
