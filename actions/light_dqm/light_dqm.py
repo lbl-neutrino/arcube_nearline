@@ -65,7 +65,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Process and plot DUNE light file data.")
     parser.add_argument('--input_path', type=str, default='.', help='Path to input file')
     parser.add_argument('--file_syntax', type=str, default='.', help='File name syntax')
-    parser.add_argument('--channel_status_file', type=str, default='actions/light_dqm/channel_warmRun2.csv', help='Channel status file')
+    parser.add_argument('--channel_status_file', type=str, default='actions/light_dqm/channel_status_warmRun2.csv', help='Channel status file')
     parser.add_argument('--output_dir', type=str, default='dqm_plots/', help='Directory to save final output plots')
     parser.add_argument('--tmp_dir', type=str, default='tmp/', help='Directory to save temporary output plots')
     parser.add_argument('--units', type=str, default='ADC16', choices=['ADC16', 'ADC14', 'V'], help='Units for waveform')
@@ -226,7 +226,7 @@ def check_flatline(max_values, threshold=0.1):
 
 # function to plot an 8x64 grid with red cross for flatlined, green circle for not flatlined
 def plot_flatline_mask(flatline_mask, channel_status=None, times=None,
-                       output_name='flatline_mask.png'):
+                       output_name='flatline_mask.png', grafana=True):
     n_adcs = flatline_mask.shape[0]
     n_channels = flatline_mask.shape[1]
     fig, ax = plt.subplots(figsize=(14, 3))
@@ -245,18 +245,27 @@ def plot_flatline_mask(flatline_mask, channel_status=None, times=None,
             # Skip inactive channels
             if channel_status is not None and channel_status[i, j] == -1:
                 continue
-            if flatline_mask[i, j]:
-                ax.text(
-                    j, i-0.1, "☹️",  # or "😢"
-                    color="red",
-                    fontsize=14,
-                    ha="center",
-                    va="center"
-                )
+            if grafana:
+                if channel_status is not None and channel_status[i, j] in [1,3]:
+                        ax.plot(j, i, marker='.', color='black', markersize=10)
+                elif flatline_mask[i, j]:
+                        ax.text(
+                            j, i-0.1, "☹️",  # or "😢"
+                            color="red",
+                            fontsize=14,
+                            ha="center",
+                            va="center"
+                        )
+                else:
+                    ax.plot(j, i, marker='o', color='green', markersize=10, fillstyle='none')
+
+                            
             else:
-                ax.plot(j, i, marker='o', color='green', markersize=10, fillstyle='none')
-            if channel_status is not None:
-                if channel_status[i, j] == 1 or channel_status[i, j] == 3:
+                if flatline_mask[i, j]: 
+                    ax.plot(j, i, marker='x', color='red', markersize=12, markeredgewidth=2)
+                else:
+                    ax.plot(j, i, marker='o', color='green', markersize=10, fillstyle='none')
+                if channel_status is not None and channel_status[i, j] in [1,3]:
                     ax.plot(j, i, marker='.', color='black', markersize=10)
 
 
@@ -269,13 +278,27 @@ def plot_flatline_mask(flatline_mask, channel_status=None, times=None,
     for y in range(1, n_adcs):
         if y % 2 == 0:
             ax.axhline(y=y - 0.5, color='grey', linestyle='-', linewidth=1, alpha=0.5)
-
-    # Custom legend handles
+    
     legend_handles = [
-        Line2D([0], [0], marker='.', color='black', linestyle='None', markersize=10, label='Ignore known problem channels'),
-        Line2D([0], [0], marker='o', color='green', markerfacecolor='none', linestyle='None', markersize=10, label='Still living')
-        Line2D([0], [0], linestyle='None', marker=r"$☹$", color='red', markersize=12, markeredgewidth=0.2, label='Dead (contact LRS expert)')
+        Line2D([0], [0], marker='.', color='black', linestyle='None', markersize=10,
+               label='Ignore known problem channels'),
+        Line2D([0], [0], marker='o', color='green', markerfacecolor='none',
+               linestyle='None', markersize=10, label='Still living')
     ]
+    
+    if grafana:
+        legend_handles.append(
+            Line2D([0], [0], linestyle='None', marker=r"$☹$", color='red',
+                   markersize=12, markeredgewidth=0.2, label='Dead (contact LRS expert)')
+        )
+    else:
+        legend_handles.append(
+            Line2D([0], [0], marker='x', color='red', linestyle='None', markersize=10,
+                   label='Dead (contact LRS expert)')
+        )
+
+
+    
     # Place legend above the plot, in one lineer', bbox_to_anchor=(0.5, -0.35), ncol=3, frameon=False)
     plt.legend(handles=legend_handles, loc='upper center', bbox_to_anchor=(0.5, 1.15), ncol=3, frameon=False)
     # add start and end times to the top left
@@ -287,7 +310,7 @@ def plot_flatline_mask(flatline_mask, channel_status=None, times=None,
     fig.set_size_inches(16, 4)
     # Increase the top margin to fit the legend
     plt.subplots_adjust(top=0.82)
-    output = f"{args.output_dir}/{output_name}"
+    output = f"{output_name}"
     plt.savefig(output)
 
 
@@ -340,7 +363,7 @@ def check_baseline(prev_baseline, current_baseline, units='ADC16', threshold=200
 
 
 def plot_baseline_mask(baseline_mask, channel_status=None, times=None,
-                       output_name='baseline_mask.png'):
+                       output_name='baseline_mask.png', grafana=True):
     """
     Plot an 8x64 grid with red cross for baseline outliers, green circle for normal.
     Optionally mark known bad channels with a black dot.
@@ -359,26 +382,33 @@ def plot_baseline_mask(baseline_mask, channel_status=None, times=None,
 
     for i in range(n_adcs):
         for j in range(n_channels):
-            # Skip inactive channels
-            
+            # Skip inactive channels 
             if channel_status is not None and channel_status[i, j] == -1:
                 continue
-            
-    
-            if baseline_mask[i, j]:
-                ax.text(
-                    j, i-0.1, "☹️",  # or "😢"
-                    color="red",
-                    fontsize=14,
-                    ha="center",
-                    va="center"
-                )
-            else:
-                ax.plot(j, i, marker='o', color='green', markersize=10, fillstyle='none')
-            if channel_status is not None:
-                if channel_status[i, j] == 2 or channel_status[i, j] == 3:
-                    ax.plot(j, i, marker='.', color='black', markersize=10)
 
+            if grafana:
+                if channel_status is not None and channel_status[i, j] in [2,3]:
+                        ax.plot(j, i, marker='.', color='black', markersize=10)
+                elif baseline_mask[i, j]:
+                    ax.text(
+                        j, i-0.1, "☹️",  # or "😢"
+                        color="red",
+                        fontsize=14,
+                        ha="center",
+                        va="center"
+                    )
+
+                else:
+                    ax.plot(j, i, marker='o', color='green', markersize=10, fillstyle='none')
+
+            else:
+                if baseline_mask[i, j]:
+                    ax.plot(j, i, marker='x', color='red', markersize=12, markeredgewidth=2)
+                else:
+                    ax.plot(j, i, marker='o', color='green', markersize=10, fillstyle='none')
+                if channel_status is not None and channel_status[i, j] in [2,3]:
+                    ax.plot(j, i, marker='.', color='black', markersize=10)
+                        
     plt.title("Channels baseline status", y=1.18, fontsize=14)
     plt.tight_layout()
     # add faded line at x=31.5
@@ -387,13 +417,25 @@ def plot_baseline_mask(baseline_mask, channel_status=None, times=None,
     for y in range(1, n_adcs):
         if y % 2 == 0:
             ax.axhline(y=y - 0.5, color='grey', linestyle='-', linewidth=1, alpha=0.5)
-
-    # Custom legend handles
     legend_handles = [
-        Line2D([0], [0], marker='.', color='black', linestyle='None', markersize=10, label='Ignore known problem channels'),
-        Line2D([0], [0], marker='o', color='green', markerfacecolor='none', linestyle='None', markersize=10, label='Stable'),
-        Line2D([0], [0], linestyle='None', marker=r"$☹$", color='red', markersize=12, markeredgewidth=0.2, label='Deviation (contact LRS expert)')
+        Line2D([0], [0], marker='.', color='black', linestyle='None', markersize=10,
+               label='Ignore known problem channels'),
+        Line2D([0], [0], marker='o', color='green', markerfacecolor='none',
+               linestyle='None', markersize=10, label='Stable')
     ]
+    
+    if grafana:
+        legend_handles.append(
+            Line2D([0], [0], linestyle='None', marker=r"$☹$", color='red',
+                   markersize=12, markeredgewidth=0.2, label='Deviation (contact LRS expert)')
+        )
+    else:
+        legend_handles.append(
+            Line2D([0], [0], marker='x', color='red', linestyle='None', markersize=10,
+                   label='Deviation (contact LRS expert)')
+        )
+
+
     plt.legend(handles=legend_handles, loc='upper center', bbox_to_anchor=(0.5, 1.15), ncol=3, frameon=False)
     # add start and end times to the top left
     if times is not None:
@@ -403,7 +445,7 @@ def plot_baseline_mask(baseline_mask, channel_status=None, times=None,
     # Make the figure slightly larger to fit the legend
     fig.set_size_inches(16, 4)
     plt.subplots_adjust(top=0.82)
-    output = f"{args.output_dir}/{output_name}"
+    output = f"{output_name}"
     plt.savefig(output)
 
 
@@ -1854,8 +1896,12 @@ def main():
             )
             # plotting flatlined channels
             plot_flatline_mask(
-                flatlined, cs, output_name=f'{args.file_syntax}{args.start_run}_light_dqm_flatline.png',
+                flatlined, cs, output_name=f'{args.output_dir}{args.file_syntax}{args.start_run}_light_dqm_flatline.png',
                 times = (start_central, end_central)
+            )
+            plot_flatline_mask(
+                flatlined, cs, output_name=f'{args.tmp_dir}plot0_flatline.pdf',
+                times = (start_central, end_central), grafana=False
             )
         except Exception as e:
             print(f"Failed to plot grafana flatline plot")
@@ -1869,9 +1915,14 @@ def main():
             )
             # plotting baseline fluctuations
             plot_baseline_mask(
-                baselined, cs, output_name=f'{args.file_syntax}{args.start_run}_light_dqm_baseline.png',
+                baselined, cs, output_name=f'{args.output_dir}{args.file_syntax}{args.start_run}_light_dqm_baseline.png',
                 times = (start_central, end_central)
+            )            # plotting baseline fluctuations
+            plot_baseline_mask(
+                baselined, cs, output_name=f'{args.tmp_dir}plot0_baseline.pdf',
+                times = (start_central, end_central), grafana=False
             )
+            
         except Exception as e:
             print(f"Failed to plot grafana baseline plot")
             traceback.print_exc()
@@ -1924,7 +1975,7 @@ def main():
         merger_grafana.append(args_pdf)
         os.remove(args_pdf)
 
-        plot_files = sorted(glob.glob(os.path.join(args.tmp_dir, "plot*.pdf")))
+        plot_files = sorted(glob.glob(os.path.join(args.tmp_dir, "*plot*.pdf")))
 
         for plot_path in plot_files:
             if os.path.exists(plot_path):
