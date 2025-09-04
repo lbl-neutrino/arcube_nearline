@@ -6,7 +6,7 @@ source $(dirname $BASH_SOURCE)/../lib/init.inc.sh
 
 plot_outbase=$data_outbase/plots
 
-inbase=/global/cfs/cdirs/dune/www/data/2x2/nearline/packet
+inbase=$nearline_root/packet
 
 inpath=$1; shift
 

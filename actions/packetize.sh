@@ -4,7 +4,7 @@ stage=packet
 
 source $(dirname $BASH_SOURCE)/../lib/init.inc.sh
 
-inbase=$data_root/CRS
+inbase=$data_root/CRS.run2
 
 inpath=$1; shift
 

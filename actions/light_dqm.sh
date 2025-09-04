@@ -4,8 +4,7 @@ stage=light_dqm
 
 source $(dirname $BASH_SOURCE)/../lib/init.inc.sh
 
-# light_dqm.py expects a trailing slash
-inbase=/global/cfs/cdirs/dune/www/data/2x2/nearline_run2/flowed_light
+inbase=$nearline_root/flowed_light
 
 # For example,
 inpath=$1; shift

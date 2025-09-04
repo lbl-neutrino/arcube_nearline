@@ -4,7 +4,7 @@ stage=hot_pixels
 
 source $(dirname $BASH_SOURCE)/../lib/init.inc.sh
 
-inbase=/global/cfs/cdirs/dune/www/data/2x2/nearline/packet
+inbase=$data_root/$nearline_name/packet
 
 inpath=$1; shift
 
