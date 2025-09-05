@@ -1896,11 +1896,11 @@ def main():
             )
             # plotting flatlined channels
             plot_flatline_mask(
-                flatlined, cs, output_name=f'{args.output_dir}{args.file_syntax}{args.start_run}_light_dqm_flatline.png',
+                flatlined, cs, output_name=f'{args.output_dir}/{args.file_syntax}{args.start_run}_light_dqm_flatline.png',
                 times = (start_central, end_central)
             )
             plot_flatline_mask(
-                flatlined, cs, output_name=f'{args.tmp_dir}plot0_flatline.pdf',
+                flatlined, cs, output_name=f'{args.tmp_dir}/plot0_flatline.pdf',
                 times = (start_central, end_central), grafana=False
             )
         except Exception as e:
@@ -1915,11 +1915,11 @@ def main():
             )
             # plotting baseline fluctuations
             plot_baseline_mask(
-                baselined, cs, output_name=f'{args.output_dir}{args.file_syntax}{args.start_run}_light_dqm_baseline.png',
+                baselined, cs, output_name=f'{args.output_dir}/{args.file_syntax}{args.start_run}_light_dqm_baseline.png',
                 times = (start_central, end_central)
             )            # plotting baseline fluctuations
             plot_baseline_mask(
-                baselined, cs, output_name=f'{args.tmp_dir}plot0_baseline.pdf',
+                baselined, cs, output_name=f'{args.tmp_dir}/plot0_baseline.pdf',
                 times = (start_central, end_central), grafana=False
             )
             
