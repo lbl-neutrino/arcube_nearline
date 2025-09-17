@@ -422,7 +422,7 @@ def plot_sum_waveform(waveform, units='ADC16', i_evt=0, output_name='sum_wavefor
             # set title
             axes[idx, tt_idx].set_title(f'Event {i_evt} - Non-beam trigger timing')
             axes[idx, tt_idx].plot(sum_wvfm, color='black', alpha=0.5, label='Sum ADC')
-            axes[idx, tt_idx].set_title(f'ADC {i} - EPCB {j}')
+            axes[idx, tt_idx].set_title(f'ADC {i} - EPCB {j}, Event {i_evt}')
             axes[idx, tt_idx].set_ylabel(f'{units} counts')
             axes[idx, tt_idx].legend(loc='upper right', fontsize='small')
             axes[idx, tt_idx].grid(True)
@@ -520,8 +520,8 @@ def plot_baselines(prev_baselines, baselines, i_evt, mask_inactive=True,
     axes = plt.subplots(n_adcs, 1, figsize=(10, 2*n_adcs), sharex=True)[1]
     # Initialize arrays to store median, lower, and upper bounds
     medians = np.median(baselines[i_evt,:,:], axis=0)
-    lowers = np.percentile(baselines[i_evt,:,:], 16, axis=0)
-    uppers = np.percentile(baselines[i_evt,:,:], 84, axis=0)
+    lowers = np.percentile(baselines[i_evt,:,:], 16, axis=0) - medians
+    uppers = np.percentile(baselines[i_evt,:,:], 84, axis=0) - medians
     # Loop over each ADC
     for i in range(n_adcs):
         ax = axes[i]
@@ -533,9 +533,9 @@ def plot_baselines(prev_baselines, baselines, i_evt, mask_inactive=True,
             mask = np.ones_like(channels_idx, dtype=bool)
         if isinstance(i_evt, np.ndarray) and len(i_evt) > 1:
             # Compute 68% central quantile range (16th and 84th percentiles)
-            q16 = lowers[i, mask]
-            q84 = uppers[i, mask]
-            median = medians[i, mask]
+            q16 = np.percentile(baselines[i_evt, i, :], 16, axis=0)
+            q84 = np.percentile(baselines[i_evt, i, :], 84, axis=0)
+            median = np.median(baselines[i_evt, i, :], axis=0)
             lower = median - q16
             upper = q84 - median
 
@@ -574,7 +574,10 @@ def plot_baselines(prev_baselines, baselines, i_evt, mask_inactive=True,
         ax.set_title(f'ADC {i} Baselines')
         ax.set_ylabel('Baseline (ADC counts)')
         ax.grid(True, which='both', linestyle='--', linewidth=0.5)
-
+        # Store median, lower, and upper for later use
+        medians[i, mask] = median[mask]
+        lowers[i, mask] = lower[mask]
+        uppers[i, mask] = upper[mask]
     # adjust layout
     plt.ylim(-30000, -20000)  # Set y-axis limit to -1000 to 1000 ADC counts
     plt.tight_layout()
@@ -1344,16 +1347,36 @@ def main():
     # start timer
     start_time = time.time()
 
+
+    # search for any files in --input_path starting with args.name_conv and ending with '.FLOW.hdf5'
+    import os
+    all_files = [f for f in os.listdir(args.input_path) if f.startswith(args.name_conv) and f.endswith('.FLOW.hdf5')]
+    all_files.sort()
+    n_available_files = len(all_files)
+    print(f"Found {n_available_files} files in {args.input_path} starting with {args.name_conv} and ending with .FLOW.hdf5")
+    if n_available_files == 0:
+        print("No files found. Exiting.")
+        sys.exit(1)
+    if args.start_file >= n_available_files:
+        print(f"Start file index {args.start_file} is out of range. There are only {n_available_files} files available. Exiting.")
+        sys.exit(1)
+    if args.start_file + args.nfiles > n_available_files:
+        args.nfiles = n_available_files - args.start_file
+        print(f"Adjusting number of files to process to {args.nfiles} to avoid going out of range.")
+
     # files
-    files_arr = np.arange(args.start_file, args.start_file +args.nfiles, 1)
+    #files_arr = np.arange(args.start_file, args.start_file +args.nfiles, 1)
 
     file_time = start_time
-    for i_file in files_arr:
+
+    for i_file in range(args.start_file, args.start_file + args.nfiles):
+        filename = f'{args.input_path}{all_files[i_file]}'
+    #for i_file in files_arr:
 
         # Construct the filename based on the input path and file index
         # mpd_run_hvramp_rctl_105_p
         # mpd_run_dbg_rctl_
-        filename = f'{args.input_path}{args.name_conv}{i_file}.FLOW.hdf5'
+        #filename = f'{args.input_path}{args.name_conv}{i_file}.FLOW.hdf5'
         print(f"Processing file: {filename} with units: {args.units}")
         ptps = get_ptps(args.units)
         file = h5py.File(filename, 'r')
