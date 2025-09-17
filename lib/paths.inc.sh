@@ -6,7 +6,7 @@ default_log_root=/pscratch/sd/d/dunepr/logs
 data_root=${ARCUBE_NEARLINE_DATA_ROOT:-$default_data_root}
 log_root=${ARCUBE_NEARLINE_LOG_ROOT:-$default_log_root}
 
-nearline_name=nearline_run2
+nearline_name=${ARCUBE_NEARLINE_NAME:-nearline_run2}
 nearline_root=$data_root/$nearline_name
 data_outbase=$nearline_root/$stage
 plot_outbase=$data_outbase/plots
