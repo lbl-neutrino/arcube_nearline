@@ -1702,7 +1702,7 @@ def main():
 
         args_list = [
             f"File index: {i_file}",
-            input_path_str,
+            filename,
             "\n",
             f"Data start timestamp (CT): {start_central}",
             f"Data end timestamp   (CT): {end_central}",
@@ -1721,7 +1721,7 @@ def main():
         ]
         args_pdf = os.path.join(args.output_dir, f"args_list_{i_file}.pdf")
         with PdfPages(args_pdf) as pdf:
-            fig, ax = plt.subplots(figsize=(8.5, 6))
+            fig, ax = plt.subplots(figsize=(10, 6))
             ax.axis('off')
             text = "\n".join(args_list)
             ax.text(0.01, 0.99, text, va='top', ha='left', fontsize=12, family='monospace')
