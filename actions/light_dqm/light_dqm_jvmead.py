@@ -1700,28 +1700,42 @@ def main():
         input_path_lines.append(input_path)
         input_path_str = "--input_path \\\n" + "\n".join("    " + l for l in input_path_lines)
 
-        args_list = [
-            f"File index: {i_file}",
-            filename,
-            "\n",
-            f"Data start timestamp (CT): {start_central}",
-            f"Data end timestamp   (CT): {end_central}",
-            f"DQM runtime          (CT): {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time() - 21600))}",
-            "\n",
-            f"--nfiles {args.nfiles}",
-            f"--start_file {args.start_file}",
-            f"--ncomp {args.ncomp}",
-            "\n",
-            f"--output_dir {args.output_dir}",
-            f"--units {args.units}",
-            f"--ptps16bit {args.ptps16bit}",
-            "\n",
-            f"--max_evts {args.max_evts}",
-            f"--powspec_nevts {args.powspec_nevts}"
-        ]
+        # split filename at '/' closest to the centre
+        filename_lines = []
+        max_line_length = 60
+        filename_str = filename
+        while len(filename_str) > max_line_length:
+            split_idx = filename_str.rfind('/', 0, max_line_length)
+            if split_idx == -1:
+                split_idx = max_line_length
+            filename_lines.append(filename_str[:split_idx])
+            filename_str = filename_str[split_idx:]
+        filename_lines.append(filename_str)
+        filename_formatted = "\n".join("    " + l for l in filename_lines)
+
+        # Build args_list dynamically, avoiding None entries
+        args_list = [f"File index: {i_file}"]
+
+        # Add formatted filename lines
+        args_list.extend([line for line in filename_lines if line])
+
+        args_list.append("")
+        args_list.append(f"Data start timestamp (CT): {start_central}")
+        args_list.append(f"Data end timestamp   (CT): {end_central}")
+        args_list.append(f"DQM runtime          (CT): {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time() - 21600))}")
+        args_list.append("")
+        # Add all relevant arguments
+        for arg_name in [
+            "nfiles", "start_file", "ncomp", "output_dir", "units", "ptps16bit", "max_evts", "powspec_nevts"
+        ]:
+            arg_value = getattr(args, arg_name)
+            args_list.append(f"--{arg_name} {arg_value}")
+        # remove None
+        args_list = [line for line in args_list if line is not None]
+
         args_pdf = os.path.join(args.output_dir, f"args_list_{i_file}.pdf")
         with PdfPages(args_pdf) as pdf:
-            fig, ax = plt.subplots(figsize=(10, 6))
+            fig, ax = plt.subplots(figsize=(8.5, 6))
             ax.axis('off')
             text = "\n".join(args_list)
             ax.text(0.01, 0.99, text, va='top', ha='left', fontsize=12, family='monospace')
