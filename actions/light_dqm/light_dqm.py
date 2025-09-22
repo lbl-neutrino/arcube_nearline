@@ -90,7 +90,6 @@ ptps16bit = args.ptps16bit
 default_units = args.units
 
 SAMPLE_RATE = 0.016  # us per sample
-SAMPLES = 1000       # samples per waveform
 adc14_max = 8191
 adc14_16 = 2**2      # Conversion factor between 14 and 16 bit ADC
 
@@ -476,6 +475,7 @@ def plot_sum_waveform(waveform, units='ADC16', i_evt=0, output_name='sum_wavefor
     # waveform shape: (n_events, n_adcs, n_channels, n_samples)
     n_epcbs = int(len(channels) // 6)
     n_adcs = waveform.shape[1]
+    n_samples = waveform.shape[3]
     nrows = n_adcs * (n_epcbs // 2)
     ncols = 2
     _, axes = plt.subplots(nrows, ncols, figsize=(20, 2 * nrows), sharex=True)
@@ -505,7 +505,7 @@ def plot_sum_waveform(waveform, units='ADC16', i_evt=0, output_name='sum_wavefor
             axes[idx, tt_idx].set_ylabel(f'{units} counts')
             axes[idx, tt_idx].legend(loc='upper right', fontsize='small')
             axes[idx, tt_idx].grid(True)
-            axes[idx, tt_idx].set_xlim(0, 1000)
+            axes[idx, tt_idx].set_xlim(0, n_samples)
             axes[idx, tt_idx].set_ylim(-5000, 70000)
     axes[-1, 0].set_xlabel('Samples/ time (ticks)')
     axes[-1, 1].set_xlabel('Samples/ time (ticks)')
@@ -549,7 +549,7 @@ def plot_noises(prev_noises, noises, i_evt, mask_inactive=True,
             lower = median - q16
             upper = q84 - median
             # Set alpha to 0.5 for bad channels (cs != 0)
-            if format_bad_channels and cs.shape == (8, 64):
+            if format_bad_channels and cs.shape == (n_adcs, len(channels_idx)):
                 alphas = np.ones_like(median)
                 bad_mask = cs[i, :] != 0
                 alphas[bad_mask] = 0.25
@@ -590,7 +590,7 @@ def plot_noises(prev_noises, noises, i_evt, mask_inactive=True,
     axes[-1].set_xlabel('channel #')
     # adjust layout
     plt.tight_layout()
-    plt.show()
+
     # save as pdf
     output_pdf = f"{args.tmp_dir}/{output_name}"
     with PdfPages(output_pdf) as pdf:
@@ -627,7 +627,7 @@ def plot_baselines(prev_baselines, baselines, i_evt, mask_inactive=True,
             upper = q84 - median
 
             # Set alpha to 0.5 for bad channels (cs != 0)
-            if format_bad_channels and cs.shape == (8, 64):
+            if format_bad_channels and cs.shape == (n_adcs, len(channels_idx)):
                 alphas = np.ones_like(median)
                 bad_mask = cs[i, :] != 0
                 alphas[bad_mask] = 0.25
@@ -665,7 +665,6 @@ def plot_baselines(prev_baselines, baselines, i_evt, mask_inactive=True,
     # adjust layout
     axes[-1].set_xlabel('channel #')
     plt.tight_layout()
-    plt.show()
     # save as pdf
     output_pdf = f"{args.tmp_dir}/{output_name}"
     with PdfPages(output_pdf) as pdf:
@@ -693,13 +692,14 @@ def get_noise_spectra(waveform, mask=None):
     # mask waveform, set to Nan
     if mask is not None:
         waveform = np.where(mask[..., np.newaxis], waveform, np.nan)
+    nsamples = waveform.shape[3]
     # calculate the FFT of the waveform
-    fft_N = rfft(waveform, axis=-1) / int(SAMPLES/2+1)
+    fft_N = rfft(waveform, axis=-1) / int(nsamples/2+1)
     # calculate the power spectrum
     power_spectra = 2*np.abs(fft_N)**2
     upper_quantile, power_spectrum, lower_quantile = np.nanquantile(power_spectra, [0.84, 0.5, 0.16], axis=0)
     # calculate the frequency bins
-    freq_bins = rfftfreq(SAMPLES, d=SAMPLE_RATE * 1e-6)
+    freq_bins = rfftfreq(nsamples, d=SAMPLE_RATE * 1e-6)
     return freq_bins, power_spectra, power_spectrum, upper_quantile, lower_quantile
 
 # plot the average noise spectrum
@@ -723,7 +723,7 @@ def plot_noise_spectra_epcb(
             channels_list = channels[j*6:(j+1)*6]
             epcb_mask[channels_list] = True
             # Mask for good channels
-            if skip_bad_channels and cs.shape == (8, 64):
+            if skip_bad_channels and cs.shape == (n_adcs, len(channels_list)):
                 ch_mask = (cs[i, :] == 0)
             else:
                 ch_mask = np.ones(noise_spectra.shape[1], dtype=bool)
@@ -782,7 +782,7 @@ def plot_noise_spectra_channels(
             channels_list = channels[j*6:(j+1)*6]
             epcb_mask[channels_list] = True
             # Mask for good channels
-            if skip_bad_channels and cs.shape == (8, 64):
+            if skip_bad_channels and cs.shape == (n_adcs, len(channels_list)):
                 ch_mask = (cs[i, :] == 0)
             else:
                 ch_mask = np.ones(noise_spectra.shape[1], dtype=bool)
@@ -851,7 +851,7 @@ def plot_clipped_fraction(prev_clipped_evts, clipped_evts, title=None,
 
         # define alpha 0.25 for cs!=0
         alphas = np.ones_like(clipped_pct)
-        if cs.shape == (8, 64):
+        if cs.shape == (n_adcs, n_chs):
             bad_mask = cs[i_adc, :] != 0
             alphas[bad_mask] = 0.25
         # Plot each point individually to allow per-point alpha
@@ -1480,6 +1480,23 @@ def read_eff_from_json(file_indices, output_dir, filename):
 
     return passed, totals
 
+#err message for plots that could not be produced
+def safeplot(title="Unknown_plot"):
+    """
+    If plot fails, insert an error page.
+    """
+    # Add an error page instead
+    fig, ax = plt.subplots(figsize=(8.5, 11))  # letter-size page
+    ax.axis("off")
+    ax.text(
+        0.5, 0.5,
+        f"ERROR: could not produce plot '{title} ☹️' \n",
+        ha="center", va="center", wrap=True, fontsize=12, color="red"
+    )
+    output_pdf = f"{args.tmp_dir}/{title}"
+    with PdfPages(output_pdf) as pdf:
+        pdf.savefig()
+        plt.close()
 # ----------------------------- #
 #             Main              #
 # ----------------------------- #
@@ -1607,6 +1624,7 @@ def main():
 
         except Exception as e:
             print(f"Failed to plot summed waveforms")
+            safeplot(title='plot1_sumwvfm.pdf')
             traceback.print_exc()
 
         print(f"Sum waveform plotted for file: {filename}")
@@ -1646,6 +1664,7 @@ def main():
 
         except Exception as e:
             print(f"Failed to plot power spectra")
+            safeplot(title='plot5_powspec.pdf')
             traceback.print_exc()
         # plot_noise_spectra_channels(
         #    freq_bins, noise_spectrum, None, None,
@@ -1667,6 +1686,7 @@ def main():
                          args.output_dir, 'noises.json')
         except Exception as e:
             print(f"Failed to plot noise spectra")
+            safeplot(title='plot4_noises.pdf')
             traceback.print_exc()
 
         try:
@@ -1683,6 +1703,7 @@ def main():
             print(f"Noise and baselines plotted for file: {filename}")
         except Exception as e:
             print(f"Failed to plot baselines")
+            safeplot(title='plot2_baselines.pdf')
             traceback.print_exc()
         
         # Plot clipped fraction for total
@@ -1748,6 +1769,7 @@ def main():
                                     args.output_dir, 'clipped_ch_beam.json')
             except Exception as e:
                 print(f"Failed to plot beam clipped events")
+                safeplot(title="plot6_clipped_beam.pdf")
                 traceback.print_exc()
         if nstrig_evts:
             try:
@@ -1805,13 +1827,14 @@ def main():
                     ) if prev_strig_clipped_inputs is not None else None
                     clip_pass, clip_tot = plot_clipped_ch_fraction(
                         prev_strig_clipped, strig_clipped, strig_max_values, ptps,
-                        "Self-trigger Trigger  (% of events with clipped waveforms, normalized per channel)", output_name='plot_clipped8_ch_self.pdf'
+                        "Self-trigger Trigger  (% of events with clipped waveforms, normalized per channel)", output_name='plot6_clipped_ch_self.pdf'
                     )
                     if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
                                     args.output_dir, 'clipped_ch_self.json')
                     print(f"Clipped channel fraction plotted for file: {filename}")
             except Exception as e:
                 print(f"Failed to plot self trigger clipped evts")
+                safeplot(title="plot6_clipped_self.pdf")
                 traceback.print_exc()
 
     
@@ -1827,7 +1850,7 @@ def main():
                 ) if prev_beam_negs_inputs is not None else None
                 negs_pass, negs_tot = plot_neg_tpc_fraction(
                     prev_beam_negs, beam_negs, beam_max_values, ptps,
-                    "Beam trigger (% of events with -ve spikes, normalized per TPC)", "plot6_negatives_beam_tpc.pdf"
+                    "Beam trigger (% of events with -ve spikes, normalized per TPC)", "plot7_negatives_beam_tpc.pdf"
                 )
                 if args.write_json_blobs: save_eff_as_json(i_file, negs_pass, negs_tot,
                                 args.output_dir, 'negatives_tpc_beam.json')
@@ -1843,12 +1866,13 @@ def main():
                     ) if prev_beam_negs_inputs is not None else None
                     negs_pass, negs_tot = plot_neg_epcb_fraction(
                         prev_beam_negs, beam_negs, beam_max_values, ptps,
-                        "Beam trigger (% of events with -ve spikes, normalized per EPCB)", "plot6_negatives_beam_epcb.pdf"
+                        "Beam trigger (% of events with -ve spikes, normalized per EPCB)", "plot7_negatives_beam_epcb.pdf"
                     )
                     if args.write_json_blobs: save_eff_as_json(i_file, negs_pass, negs_tot,
                                     args.output_dir, 'negatives_epcb_beam.json')
             except Exception as e:
                 print(f"Failed to plot beam -ve spike evts")
+                safeplot(title="plot7_negatives_beam.pdf")
                 traceback.print_exc()
         
         if nstrig_evts:
@@ -1862,7 +1886,7 @@ def main():
                 ) if prev_strig_negs_inputs is not None else None
                 negs_pass, negs_tot = plot_neg_tpc_fraction(
                     prev_strig_negs, strig_negs, strig_max_values, ptps,
-                    "Self-trigger (% of events with -ve spikes, normalized per TPC)", "plot6_negatives_self_tpc.pdf"
+                    "Self-trigger (% of events with -ve spikes, normalized per TPC)", "plot7_negatives_self_tpc.pdf"
                 )
                 if args.write_json_blobs: save_eff_as_json(i_file, negs_pass, negs_tot,
                                 args.output_dir, 'negatives_tpc_self.json')
@@ -1877,13 +1901,14 @@ def main():
                     ) if prev_strig_negs_inputs is not None else None
                     negs_pass, negs_tot = plot_neg_epcb_fraction(
                         prev_strig_negs, strig_negs, strig_max_values, ptps,
-                        "Self-trigger  (% of events with -ve spikes, normalized per EPCB)", "plot6_negatives_self_epcb.pdf"
+                        "Self-trigger  (% of events with -ve spikes, normalized per EPCB)", "plot7_negatives_self_epcb.pdf"
                     )
                     if args.write_json_blobs: save_eff_as_json(i_file, negs_pass, negs_tot,
                                     args.output_dir, 'negatives_epcb_self.json')
                     print(f"Negative spike EPCB fraction plotted for file: {filename}")
             except Exception as e:
                 print(f"Failed to plot self trigger -ve spike evts")
+                safeplot(title="plot7_negatives_self.pdf")
                 traceback.print_exc()
 
         ### GRAFANA PLOTS ###
@@ -1905,6 +1930,7 @@ def main():
             )
         except Exception as e:
             print(f"Failed to plot grafana flatline plot")
+            safeplot(title="plot0_flatline.pdf")
             traceback.print_exc()
 
         try:
@@ -1925,6 +1951,7 @@ def main():
             
         except Exception as e:
             print(f"Failed to plot grafana baseline plot")
+            safeplot(title="plot0_baseline.pdf")
             traceback.print_exc()
 
         # search for files in the output directory and merge pdfs
