@@ -30,7 +30,7 @@ get_outpath() {
     realpath "$outbase/$reldir/$outname"
 }
 
-channel_status=$(dirname "${BASH_SOURCE[0]}")/light_dqm/channel_status.csv
+channel_status=$(dirname "${BASH_SOURCE[0]}")/light_dqm/channel_status_warmRun2.csv
 
 plotpath1=$(get_outpath "$plot_outbase" main pdf)
 plotpath2=$(get_outpath "$plot_outbase" baseline png)
