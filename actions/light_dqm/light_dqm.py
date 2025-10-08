@@ -7,62 +7,79 @@
 ##########################################
 ##
 ##  Written 09.07.2025
+
+##  Updated 27.08.2025
 ##
 ##    - James Mead <jmead@nikhef.nl>
+##    - Sindhujha Kumaran <s.kumaran@uci.edu>
 ##
 ###########################################
 '''
     # example usage:
 
-python light_dqm_jvmead.py
-                       --input_path /global/cfs/cdirs/dune/www/data/2x2/nearline/flowed_light/data_bin004/
-                       --name_conv mpd_run_hvramp_rctl_105_p
+python light_dqm.py
+                       --input_path /global/cfs/cdirs/dune/www/data/2x2/nearline_run2/flowed_light/warm_commission/
+                       --file_syntax mpd_run_dbg_rctl_
+                       --channel_status_file light_dqm/channel_status.csv
                        --output_dir dqm_plots/
+                       --tmp_dir tmp/
                        --units ADC16
                        --ptps16bit 150
-                       --start_file 0
+                       --start_run 0
                        --nfiles 10
                        --ncomp 5
                        --powspec_nevts 200
                        --max_evts 500
+                       --write_json_blobs False
+                       --merge_grafana_plots False
+                       --plot_all_clipped False
+                       --plot_all_negatives False
 '''
 ############################################
 
+import os
+import sys
+import time
+import glob
+import argparse
+import traceback
+from ascii import header, footer
+
+import json
+import h5py
 import numpy as np
 import pandas as pd
-import h5py
-import argparse
+
 import matplotlib.pyplot as plt
-from scipy.fft import rfft, rfftfreq
 from matplotlib.backends.backend_pdf import PdfPages
-from scipy.stats import beta
-import json
-import sys
-import os
-import time
-from PyPDF2 import PdfMerger
 from matplotlib.lines import Line2D
 
-# install PyPDF2 if not already installed
-try:
-    from PyPDF2 import PdfReader, PdfWriter
-except ImportError:
-    print("PyPDF2 not found. Please install it using 'pip install PyPDF2'.")
-    sys.exit(1)
+from scipy.fft import rfft, rfftfreq
+from scipy.stats import beta
+
+from PyPDF2 import PdfMerger
+from PyPDF2 import PdfReader, PdfWriter
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Process and plot DUNE light file data.")
     parser.add_argument('--input_path', type=str, default='.', help='Path to input file')
-    parser.add_argument('--name_conv', type=str, default='mpd_run_hvramp_rctl_105_p', help='Naming convention for input files')
-    parser.add_argument('--output_dir', type=str, default='.', help='Directory to save output plots')
+    parser.add_argument('--file_syntax', type=str, default='.', help='File name syntax')
+    parser.add_argument('--channel_status_file', type=str, default='actions/light_dqm/channel_status_warmRun2.csv', help='Channel status file')
+    parser.add_argument('--output_dir', type=str, default='dqm_plots/', help='Directory to save final output plots')
+    parser.add_argument('--tmp_dir', type=str, default='tmp/', help='Directory to save temporary output plots')
     parser.add_argument('--units', type=str, default='ADC16', choices=['ADC16', 'ADC14', 'V'], help='Units for waveform')
-    parser.add_argument('--ptps16bit', type=int, default=150, help='Peak-to-peak threshold for 16-bit ADC')
-    parser.add_argument('--start_file', type=int, default=0, help='Starting file index for processing')
+    parser.add_argument('--ptps16bit', type=int, default=500, help='Peak-to-peak threshold for 16-bit ADC')
+    parser.add_argument('--start_run', type=int, default=0, help='Starting file index for processing')
     parser.add_argument('--nfiles', type=int, default=1, help='Number of files to process')
     parser.add_argument('--ncomp', type=int, default=-1, help='Number of previous files to compare')
-    parser.add_argument('--powspec_nevts', type=int, default=100, help='Number of events to process per file for noise spectra')
-    parser.add_argument('--max_evts', type=int, default=1000, help='Maximum number of events to process for the whole file')
+    parser.add_argument('--powspec_nevts', type=int, default=500, help='Number of events to process per file for noise spectra')
+    parser.add_argument('--max_evts', type=int, default=500, help='Maximum number of events to process for the whole file')
+    parser.add_argument('--write_json_blobs', type=bool, default=False, help='Saves all data to json blobs if true')
+    parser.add_argument('--merge_grafana_plots', type=bool, default=False, help='Merge baselines and flatlines grafana plots')
+    parser.add_argument('--plot_all_clipped', type=bool, default=False, help='Plot all clipped waveform plots')
+    parser.add_argument('--plot_all_negatives', type=bool, default=False, help='Plot all negative baseline plots')
+
     return parser.parse_args()
 
 # ----------------------------- #
@@ -115,9 +132,20 @@ for group_start in range(0, 64, 16):
     channels.extend(range(group_start + 4, min(group_start + 16, 64)))
 
 # Load channel status (0 = good, nonzero = bad)
-channel_status_csv = 'channel_status.csv'
-cs_df = pd.read_csv(channel_status_csv, header=None)
-cs = cs_df.to_numpy()
+channel_status_csv = args.channel_status_file
+cs = None  # default if load fails
+
+try:
+    cs_df = pd.read_csv(channel_status_csv, header=None)
+    cs = cs_df.to_numpy()
+    print(f"Channel status loaded successfully from: {channel_status_csv}")
+except FileNotFoundError:
+    print(f"Channel status file not found, skipping: {channel_status_csv}")
+except pd.errors.EmptyDataError:
+    print(f"Channel status file is empty: {channel_status_csv}")
+except Exception as e:
+    print(f"Error loading channel status from {channel_status_csv}: {e}")
+
 
 # ----------------------------- #
 #         Core Functions        #
@@ -198,7 +226,7 @@ def check_flatline(max_values, threshold=0.1):
 
 # function to plot an 8x64 grid with red cross for flatlined, green circle for not flatlined
 def plot_flatline_mask(flatline_mask, channel_status=None, times=None,
-                       output_name='flatline_mask.pdf'):
+                       output_name='flatline_mask.png', grafana=True):
     n_adcs = flatline_mask.shape[0]
     n_channels = flatline_mask.shape[1]
     fig, ax = plt.subplots(figsize=(14, 3))
@@ -217,15 +245,31 @@ def plot_flatline_mask(flatline_mask, channel_status=None, times=None,
             # Skip inactive channels
             if channel_status is not None and channel_status[i, j] == -1:
                 continue
-            if flatline_mask[i, j]:
-                # Red cross for flatlined
-                ax.plot(j, i, marker='x', color='red', markersize=12, markeredgewidth=2)
-            else:
-                # Green circle for not flatlined
-                ax.plot(j, i, marker='o', color='green', markersize=10, fillstyle='none')
-            if channel_status is not None and channel_status[i, j] != 0:
-                ax.plot(j, i, marker='.', color='black', markersize=10)
+            if grafana:
+                if channel_status is not None and channel_status[i, j] in [1,3]:
+                        ax.plot(j, i, marker='.', color='black', markersize=10)
+                elif flatline_mask[i, j]:
+                        ax.text(
+                            j, i-0.1, "☹️",  # or "😢"
+                            color="red",
+                            fontsize=14,
+                            ha="center",
+                            va="center"
+                        )
+                else:
+                    ax.plot(j, i, marker='o', color='green', markersize=10, fillstyle='none')
 
+
+            else:
+                if flatline_mask[i, j]:
+                    ax.plot(j, i, marker='x', color='red', markersize=12, markeredgewidth=2)
+                else:
+                    ax.plot(j, i, marker='o', color='green', markersize=10, fillstyle='none')
+                if channel_status is not None and channel_status[i, j] in [1,3]:
+                    ax.plot(j, i, marker='.', color='black', markersize=10)
+
+
+    plt.title("Alive and dead channels", y=1.18, fontsize=14)
     plt.tight_layout()
 
     # add faded line at x=31.5
@@ -235,12 +279,25 @@ def plot_flatline_mask(flatline_mask, channel_status=None, times=None,
         if y % 2 == 0:
             ax.axhline(y=y - 0.5, color='grey', linestyle='-', linewidth=1, alpha=0.5)
 
-    # Custom legend handles
+
     legend_handles = [
-        Line2D([0], [0], marker='.', color='black', linestyle='None', markersize=10, label='Ignore known problem channels'),
-        Line2D([0], [0], marker='x', color='red', linestyle='None', markersize=10, label='Dead (call for help)'),
-        Line2D([0], [0], marker='o', color='green', markerfacecolor='none', linestyle='None', markersize=10, label='Still living')
+        Line2D([0], [0], marker='.', color='black', linestyle='None', markersize=10,
+               label='Ignore known problem channels'),
+        Line2D([0], [0], marker='o', color='green', markerfacecolor='none',
+               linestyle='None', markersize=10, label='Still living')
     ]
+
+    if grafana:
+        legend_handles.append(
+            Line2D([0], [0], linestyle='None', marker=r"$☹$", color='red',
+                   markersize=12, markeredgewidth=0.2, label='Dead (contact LRS expert)')
+        )
+    else:
+        legend_handles.append(
+            Line2D([0], [0], marker='x', color='red', linestyle='None', markersize=10,
+                   label='Dead (contact LRS expert)')
+        )
+
     # Place legend above the plot, in one lineer', bbox_to_anchor=(0.5, -0.35), ncol=3, frameon=False)
     plt.legend(handles=legend_handles, loc='upper center', bbox_to_anchor=(0.5, 1.15), ncol=3, frameon=False)
     # add start and end times to the top left
@@ -252,12 +309,8 @@ def plot_flatline_mask(flatline_mask, channel_status=None, times=None,
     fig.set_size_inches(16, 4)
     # Increase the top margin to fit the legend
     plt.subplots_adjust(top=0.82)
-    output_pdf = f"{args.output_dir}/{output_name}"
-    with PdfPages(output_pdf) as pdf:
-        pdf.savefig()
-    grafana_output = f"{args.output_dir}/flatline_latest.png"
-    plt.savefig(grafana_output, bbox_inches='tight', dpi=300)
-    plt.close()
+    output = f"{output_name}"
+    plt.savefig(output)
 
 
 def check_baseline(prev_baseline, current_baseline, units='ADC16', threshold=200):
@@ -308,7 +361,7 @@ def check_baseline(prev_baseline, current_baseline, units='ADC16', threshold=200
 
 
 def plot_baseline_mask(baseline_mask, channel_status=None, times=None,
-                       output_name='baseline_mask.pdf'):
+                       output_name='baseline_mask.png', grafana=True):
     """
     Plot an 8x64 grid with red cross for baseline outliers, green circle for normal.
     Optionally mark known bad channels with a black dot.
@@ -330,15 +383,31 @@ def plot_baseline_mask(baseline_mask, channel_status=None, times=None,
             # Skip inactive channels
             if channel_status is not None and channel_status[i, j] == -1:
                 continue
-            if baseline_mask[i, j]:
-                # Red cross for baseline outlier
-                ax.plot(j, i, marker='x', color='red', markersize=12, markeredgewidth=2)
-            else:
-                # Green circle for normal
-                ax.plot(j, i, marker='o', color='green', markersize=10, fillstyle='none')
-            if channel_status is not None and channel_status[i, j] != 0:
-                ax.plot(j, i, marker='.', color='black', markersize=10)
 
+            if grafana:
+                if channel_status is not None and channel_status[i, j] in [2,3]:
+                        ax.plot(j, i, marker='.', color='black', markersize=10)
+                elif baseline_mask[i, j]:
+                    ax.text(
+                        j, i-0.1, "☹️",  # or "😢"
+                        color="red",
+                        fontsize=14,
+                        ha="center",
+                        va="center"
+                    )
+
+                else:
+                    ax.plot(j, i, marker='o', color='green', markersize=10, fillstyle='none')
+
+            else:
+                if baseline_mask[i, j]:
+                    ax.plot(j, i, marker='x', color='red', markersize=12, markeredgewidth=2)
+                else:
+                    ax.plot(j, i, marker='o', color='green', markersize=10, fillstyle='none')
+                if channel_status is not None and channel_status[i, j] in [2,3]:
+                    ax.plot(j, i, marker='.', color='black', markersize=10)
+
+    plt.title("Channels baseline status", y=1.18, fontsize=14)
     plt.tight_layout()
     # add faded line at x=31.5
     ax.axvline(x=31.5, color='grey', linestyle='-', linewidth=1, alpha=0.5)
@@ -346,13 +415,25 @@ def plot_baseline_mask(baseline_mask, channel_status=None, times=None,
     for y in range(1, n_adcs):
         if y % 2 == 0:
             ax.axhline(y=y - 0.5, color='grey', linestyle='-', linewidth=1, alpha=0.5)
-
-    # Custom legend handles
     legend_handles = [
-        Line2D([0], [0], marker='.', color='black', linestyle='None', markersize=10, label='Ignore known problem channels'),
-        Line2D([0], [0], marker='x', color='red', linestyle='None', markersize=10, label='Deviation (call for help)'),
-        Line2D([0], [0], marker='o', color='green', markerfacecolor='none', linestyle='None', markersize=10, label='Stable')
+        Line2D([0], [0], marker='.', color='black', linestyle='None', markersize=10,
+               label='Ignore known problem channels'),
+        Line2D([0], [0], marker='o', color='green', markerfacecolor='none',
+               linestyle='None', markersize=10, label='Stable')
     ]
+
+    if grafana:
+        legend_handles.append(
+            Line2D([0], [0], linestyle='None', marker=r"$☹$", color='red',
+                   markersize=12, markeredgewidth=0.2, label='Deviation (contact LRS expert)')
+        )
+    else:
+        legend_handles.append(
+            Line2D([0], [0], marker='x', color='red', linestyle='None', markersize=10,
+                   label='Deviation (contact LRS expert)')
+        )
+
+
     plt.legend(handles=legend_handles, loc='upper center', bbox_to_anchor=(0.5, 1.15), ncol=3, frameon=False)
     # add start and end times to the top left
     if times is not None:
@@ -362,13 +443,8 @@ def plot_baseline_mask(baseline_mask, channel_status=None, times=None,
     # Make the figure slightly larger to fit the legend
     fig.set_size_inches(16, 4)
     plt.subplots_adjust(top=0.82)
-    output_pdf = f"{args.output_dir}/{output_name}"
-    with PdfPages(output_pdf) as pdf:
-        pdf.savefig()
-    grafana_output = f"{args.output_dir}/baseline_latest.png"
-    plt.savefig(grafana_output, bbox_inches='tight', dpi=300)
-    plt.close()
-
+    output = f"{output_name}"
+    plt.savefig(output)
 
 
 ### DQM PLOTS ###
@@ -422,17 +498,18 @@ def plot_sum_waveform(waveform, units='ADC16', i_evt=0, output_name='sum_wavefor
             # set title
             axes[idx, tt_idx].set_title(f'Event {i_evt} - Non-beam trigger timing')
             axes[idx, tt_idx].plot(sum_wvfm, color='black', alpha=0.5, label='Sum ADC')
-            axes[idx, tt_idx].set_title(f'ADC {i} - EPCB {j}, Event {i_evt}')
+            axes[idx, tt_idx].set_title(f'ADC {i} - EPCB {j} summed waveforms')
             axes[idx, tt_idx].set_ylabel(f'{units} counts')
             axes[idx, tt_idx].legend(loc='upper right', fontsize='small')
             axes[idx, tt_idx].grid(True)
             axes[idx, tt_idx].set_xlim(0, 1000)
             axes[idx, tt_idx].set_ylim(-5000, 70000)
-    axes[-1, 0].set_xlabel('Samples')
+    axes[-1, 0].set_xlabel('Samples/ time (ticks)')
+    axes[-1, 1].set_xlabel('Samples/ time (ticks)')
     plt.tight_layout()
     plt.show()
     # save as pdf
-    output_pdf = f"{args.output_dir}/{output_name}"
+    output_pdf = f"{args.tmp_dir}/{output_name}"
     with PdfPages(output_pdf) as pdf:
         pdf.savefig()
         plt.close()
@@ -444,9 +521,9 @@ def plot_noises(prev_noises, noises, i_evt, mask_inactive=True,
     n_adcs = noises.shape[1]
     axes = plt.subplots(n_adcs, 1, figsize=(10, 2*n_adcs), sharex=True)[1]
 
-    medians = np.zeros((n_adcs, noises.shape[2]))
-    lowers = np.zeros((n_adcs, noises.shape[2]))
-    uppers = np.zeros((n_adcs, noises.shape[2]))
+    medians = np.median(noises[i_evt,:,:], axis=0)
+    lowers = np.percentile(noises[i_evt,:,:], 16, axis=0) - medians
+    uppers = np.percentile(noises[i_evt,:,:], 84, axis=0) - medians
 
     for i in range(n_adcs):
         ax = axes[i]
@@ -456,19 +533,21 @@ def plot_noises(prev_noises, noises, i_evt, mask_inactive=True,
             mask = np.isin(channels_idx, channels)
         else:
             mask = np.ones_like(channels_idx, dtype=bool)
+        # Default values
+        median = np.full(noises.shape[2], np.nan)
+        lower  = np.full(noises.shape[2], np.nan)
+        upper  = np.full(noises.shape[2], np.nan)
+
         if isinstance(i_evt, np.ndarray) and len(i_evt) > 1:
-            # Compute 68% central quantile range (16th and 84th percentiles)
-            q16 = np.percentile(noises[i_evt, i, :], 16, axis=0)
-            q84 = np.percentile(noises[i_evt, i, :], 84, axis=0)
-            median = np.median(noises[i_evt, i, :], axis=0)
-            lower = median - q16
-            upper = q84 - median
+            # Get 68% central quantile range (16th and 84th percentiles)
+            median = medians[i, :]
+            lower = -lowers[i, :]
+            upper = uppers[i, :]
             # Set alpha to 0.5 for bad channels (cs != 0)
             if format_bad_channels and cs.shape == (8, 64):
                 alphas = np.ones_like(median)
                 bad_mask = cs[i, :] != 0
                 alphas[bad_mask] = 0.25
-
                 # Plot previous files with error bars
                 if prev_noises is not None:
                     prev_centre, prev_lower, prev_upper = prev_noises
@@ -490,7 +569,7 @@ def plot_noises(prev_noises, noises, i_evt, mask_inactive=True,
                 for ch in channels_idx[mask]:
                     ax.errorbar(
                         ch, median[ch], yerr=[[lower[ch]], [upper[ch]]],
-                        fmt='.', color='b', markersize=4,
+                        fmt='.', color='b', markersize=3,
                         linewidth=0.5, capsize=5, capthick=1,
                         alpha=alphas[ch]
                     )
@@ -498,15 +577,13 @@ def plot_noises(prev_noises, noises, i_evt, mask_inactive=True,
         ax.set_title(f'ADC {i} Noise')
         ax.set_ylabel('Noise (ADC counts)')
         ax.grid(True, which='both', linestyle='--', linewidth=0.5)
-        # Store median, lower, and upper for later use
-        medians[i, mask] = median[mask]
-        lowers[i, mask] = lower[mask]
-        uppers[i, mask] = upper[mask]
+
+    axes[-1].set_xlabel('channel #')
     # adjust layout
     plt.tight_layout()
     plt.show()
     # save as pdf
-    output_pdf = f"{args.output_dir}/{output_name}"
+    output_pdf = f"{args.tmp_dir}/{output_name}"
     with PdfPages(output_pdf) as pdf:
         pdf.savefig()
         plt.close()
@@ -531,13 +608,12 @@ def plot_baselines(prev_baselines, baselines, i_evt, mask_inactive=True,
             mask = np.isin(channels_idx, channels)
         else:
             mask = np.ones_like(channels_idx, dtype=bool)
+
         if isinstance(i_evt, np.ndarray) and len(i_evt) > 1:
-            # Compute 68% central quantile range (16th and 84th percentiles)
-            q16 = np.percentile(baselines[i_evt, i, :], 16, axis=0)
-            q84 = np.percentile(baselines[i_evt, i, :], 84, axis=0)
-            median = np.median(baselines[i_evt, i, :], axis=0)
-            lower = median - q16
-            upper = q84 - median
+            # Get 68% central quantile range (16th and 84th percentiles)
+            median = medians[i, mask]
+            lower = -lowers[i, mask]
+            upper = uppers[i, mask]
 
             # Set alpha to 0.5 for bad channels (cs != 0)
             if format_bad_channels and cs.shape == (8, 64):
@@ -566,7 +642,7 @@ def plot_baselines(prev_baselines, baselines, i_evt, mask_inactive=True,
                 for ch in channels_idx[mask]:
                     ax.errorbar(
                         ch, median[ch], yerr=[[lower[ch]], [upper[ch]]],
-                        fmt='.', color='b', markersize=4,
+                        fmt='.', color='b', markersize=3,
                         linewidth=0.5, capsize=5, capthick=1,
                         alpha=alphas[ch]
                     )
@@ -574,16 +650,13 @@ def plot_baselines(prev_baselines, baselines, i_evt, mask_inactive=True,
         ax.set_title(f'ADC {i} Baselines')
         ax.set_ylabel('Baseline (ADC counts)')
         ax.grid(True, which='both', linestyle='--', linewidth=0.5)
-        # Store median, lower, and upper for later use
-        medians[i, mask] = median[mask]
-        lowers[i, mask] = lower[mask]
-        uppers[i, mask] = upper[mask]
+
     # adjust layout
-    plt.ylim(-30000, -20000)  # Set y-axis limit to -1000 to 1000 ADC counts
+    axes[-1].set_xlabel('channel #')
     plt.tight_layout()
     plt.show()
     # save as pdf
-    output_pdf = f"{args.output_dir}/{output_name}"
+    output_pdf = f"{args.tmp_dir}/{output_name}"
     with PdfPages(output_pdf) as pdf:
         pdf.savefig()
         plt.close()
@@ -634,7 +707,7 @@ def plot_noise_spectra_epcb(
     for i in range(n_adcs):
         for j in range(n_epcbs):
             idx = i
-             # mask for epcb channels
+            # Mask for epcb channels
             epcb_mask = np.zeros(noise_spectra.shape[1], dtype=bool)
             channels_list = channels[j*6:(j+1)*6]
             epcb_mask[channels_list] = True
@@ -645,22 +718,20 @@ def plot_noise_spectra_epcb(
                 ch_mask = np.ones(noise_spectra.shape[1], dtype=bool)
             ch_mask = np.logical_and(ch_mask, epcb_mask)
 
-
             # Average over channels
             avg = np.nanmean(noise_spectra[i, ch_mask], axis=0)
-
             axes[idx].step(
-                freq_bins[freq_mask],
+                freq_bins[freq_mask]/1e6,
                 avg[freq_mask],
                 where='mid',
                 label=f'EPCB {j}'
             )
 
-            axes[idx].set_title(f'ADC {i}, Average Noise Spectrum per EPCB: first {nevts} events')
+            axes[idx].set_title(f'ADC {i}, Average Noise Spectrum per EPCB: equidistant {nevts} events')
             axes[idx].set_ylabel('V^2 / bin')
             axes[idx].set_yscale('log')
             axes[idx].set_ylim(5e-10, 1e-5)
-            axes[idx].set_xlim(0, 31.25e6)
+            axes[idx].set_xlim(0, 31.25)
             axes[idx].legend(loc='upper right', fontsize='x-small')
 
             # add grid lines
@@ -670,15 +741,15 @@ def plot_noise_spectra_epcb(
     plt.tight_layout()
     plt.show()
     # save as pdf
-    output_pdf = f"{args.output_dir}/{output_name}"
+    output_pdf = f"{args.tmp_dir}/{output_name}"
     with PdfPages(output_pdf) as pdf:
         pdf.savefig()
         plt.close()
 
 # plot the channel by channel noise spectrum
 def plot_noise_spectra_channels(
-    freq_bins, noise_spectra, upper_quantile, lower_quantile,
-    skip_bad_channels=True, nevts=None, output_name='noise_spectra_channels.pdf'):
+    freq_bins, noise_spectra, skip_bad_channels=True,
+    nevts=None, output_name='noise_spectra_channels.pdf'):
 
     n_epcbs = int(len(channels)/6)
     n_adcs = noise_spectra.shape[0]
@@ -711,7 +782,7 @@ def plot_noise_spectra_channels(
 
                 # plot step for centre line and fill between for error bands
                 axes[idx].step(
-                    freq_bins[freq_mask],
+                    freq_bins[freq_mask]/1e6,
                     noise_spectra[i, k][freq_mask],
                     where='mid', label=f'Channel {k}'
                 )
@@ -719,20 +790,20 @@ def plot_noise_spectra_channels(
             # Add horizontal line at the minimum value
             min_val = np.nanmin(noise_spectra[i, :, freq_mask])
             axes[idx].axhline(y=min_val, color='k', linestyle='--')
-            axes[idx].set_title(f'ADC {i} EPCB {j} average noise spectrum: first {nevts} events')
+            axes[idx].set_title(f'ADC {i} EPCB {j} average noise spectrum: equidistant {nevts} events')
             axes[idx].legend(loc='upper right', fontsize='small')
 
             axes[idx].set_ylabel('V^2 / bin')
             axes[idx].set_yscale('log')
             axes[idx].grid(True, which='major', linestyle='-', linewidth=0.5)
             axes[idx].set_ylim(5e-10, 1e-5)
-            axes[idx].set_xlim(0, 31.25e6)
+            axes[idx].set_xlim(0, 31.25)
 
     axes[-1].set_xlabel('Frequency (MHz)')
     plt.tight_layout()
     plt.show()
     # save as pdf
-    output_pdf = f"{args.output_dir}/{output_name}"
+    output_pdf = f"{args.tmp_dir}/{output_name}"
     with PdfPages(output_pdf) as pdf:
         pdf.savefig()
         plt.close()
@@ -788,30 +859,36 @@ def plot_clipped_fraction(prev_clipped_evts, clipped_evts, title=None,
                     [idx - 0.5, idx + 0.5], [c - l, c - l], [c + u, c + u],
                     color='red', alpha=alphas[idx]/4, step='post'
                 )
+            color = 'b'
 
-            color = 'b' #if clipped_pct[idx] > 0 else 'g'
+            # point + Clopper–Pearson error bars
+            yerr_lower = max(err_low[idx], 0)
+            yerr_upper = max(err_up[idx], 0)
             ax.errorbar(
                 idx, clipped_pct[idx],
-                yerr=[[err_low[idx]], [err_up[idx]]],
-                fmt='.', ecolor=color, markersize=4,
+                yerr=[[yerr_lower], [yerr_upper]],
+                fmt='.', ecolor=color, markersize=3,
                 capsize=4, linewidth=1, color=color,
                 alpha=alphas[idx]
             )
 
+        # get y-lim from data (excluding values with 0 total events)
+        ymax = np.max((clipped_pct+err_up)[total_events > 0]) * 1.1
+        ymax = 1.0 if ymax > 1.0 else ymax
+        ax.set_ylim(0, ymax)
+
         # formatting
-        #ax.set_ylim(0, 1)  # Set y-axis limit to 0-10%
         ax.set_title(f'ADC {i_adc} - '+ title if title else 'ADC {i_adc}')
         ax.set_ylabel(ylabel)
-        #ax.set_ylim(0, 0.2)  # Set y-axis limit to 0-20%
         ax.grid(True, which='both', linestyle='--', linewidth=0.5)
         # save clipped numerator and denominator for later use
         clip_passed[i_adc, :] = clipped_counts
         total_evts[i_adc, :] = total_events
-
+    axes[-1].set_xlabel('channel #')
     plt.tight_layout()
     plt.show()
     # save as pdf
-    output_pdf = f"{args.output_dir}/{output_name}"
+    output_pdf = f"{args.tmp_dir}/{output_name}"
     with PdfPages(output_pdf) as pdf:
         pdf.savefig()
         plt.close()
@@ -878,18 +955,25 @@ def plot_clipped_tpc_fraction(prev_clipped_evts, clipped_evts, max_vals, ths,
                     [idx - 0.5, idx + 0.5], [c - l, c - l], [c + u, c + u],
                     color='red', alpha=alphas[idx]/4, step='post'
                 )
+            color = 'b'
 
-            color = 'b' #if clipped_pct[idx] > 0 else 'g'
+            # point + Clopper–Pearson error bars
+            yerr_lower = max(err_low[idx], 0)
+            yerr_upper = max(err_up[idx], 0)
             ax.errorbar(
                 idx, clipped_pct[idx],
-                yerr=[[err_low[idx]], [err_up[idx]]],
-                fmt='.', ecolor=color, markersize=4,
+                yerr=[[yerr_lower], [yerr_upper]],
+                fmt='.', ecolor=color, markersize=3,
                 capsize=4, linewidth=1, color=color,
                 alpha=alphas[idx]
             )
 
+        # get y-lim from data (excluding values with 0 total events)
+        ymax = np.max((clipped_pct+err_up)[total_events > 0]) * 1.1
+        ymax = 1.0 if ymax > 1.0 else ymax
+        ax.set_ylim(0, ymax)
+
         # formatting
-        #ax.set_ylim(0, 5)  # Set y-axis limit to 0-10%
         ax.set_title(f'ADC {i_adc} - {title}' if title else f'ADC {i_adc}')
         ax.set_ylabel(ylabel)
         ax.grid(True, which='both', linestyle='--', linewidth=0.5)
@@ -897,11 +981,11 @@ def plot_clipped_tpc_fraction(prev_clipped_evts, clipped_evts, max_vals, ths,
         # save clipped numerator and denominator for later use
         clip_passed[i_adc, :] = clipped_counts
         total_evts[i_adc, :] = total_events
-
+    axes[-1].set_xlabel('channel #')
     plt.tight_layout()
     plt.show()
     # save as pdf
-    output_pdf = f"{args.output_dir}/{output_name}"
+    output_pdf = f"{args.tmp_dir}/{output_name}"
     with PdfPages(output_pdf) as pdf:
         pdf.savefig()
         plt.close()
@@ -957,17 +1041,25 @@ def plot_clipped_epcb_fraction(prev_clipped_evts, clipped_evts, max_vals, ths,
                     [idx - 0.5, idx + 0.5], [c - l, c - l], [c + u, c + u],
                     color='red', alpha=alphas[idx]/4, step='post'
                 )
-            color = 'b' #if clipped_pct[idx] > 0 else 'g'
+            color = 'b'
+
+            # point + Clopper–Pearson error bars
+            yerr_lower = max(err_low[idx], 0)
+            yerr_upper = max(err_up[idx], 0)
             ax.errorbar(
                 idx, clipped_pct[idx],
-                yerr=[[err_low[idx]], [err_up[idx]]],
-                fmt='.', ecolor=color, markersize=4,
+                yerr=[[yerr_lower], [yerr_upper]],
+                fmt='.', ecolor=color, markersize=3,
                 capsize=4, linewidth=1, color=color,
                 alpha=alphas[idx]
             )
 
+        # get y-lim from data (excluding values with 0 total events)
+        ymax = np.max((clipped_pct+err_up)[total_events > 0]) * 1.1
+        ymax = 1.0 if ymax > 1.0 else ymax
+        ax.set_ylim(0, ymax)
+
         # formatting
-        #ax.set_ylim(0, 5)  # Set y-axis limit to 0-10%
         ax.set_title(f'ADC {i_adc}' + (f' - {title}' if title else 'ADC {i_adc}'))
         ax.set_ylabel(ylabel)
         ax.grid(True, which='both', linestyle='--', linewidth=0.5)
@@ -975,11 +1067,11 @@ def plot_clipped_epcb_fraction(prev_clipped_evts, clipped_evts, max_vals, ths,
         # save clipped numerator and denominator for later use
         clip_passed[i_adc, :] = clipped_counts
         total_evts[i_adc, :] = total_events
-
+    axes[-1].set_xlabel('channel #')
     plt.tight_layout()
     plt.show()
     # save as pdf
-    output_pdf = f"{args.output_dir}/{output_name}"
+    output_pdf = f"{args.tmp_dir}/{output_name}"
     with PdfPages(output_pdf) as pdf:
         pdf.savefig()
         plt.close()
@@ -1029,18 +1121,25 @@ def plot_clipped_ch_fraction(prev_clipped_evts, clipped_evts, max_vals, ths,
                     [idx - 0.5, idx + 0.5], [c - l, c - l], [c + u, c + u],
                     color='red', alpha=alphas[idx]/4, step='post'
                 )
+            color = 'b'
 
-            color = 'b' #if clipped_pct[idx] > 0 else 'g'
+            # point + Clopper–Pearson error bars
+            yerr_lower = max(err_low[idx], 0)
+            yerr_upper = max(err_up[idx], 0)
             ax.errorbar(
                 idx, clipped_pct[idx],
-                yerr=[[err_low[idx]], [err_up[idx]]],
-                fmt='.', ecolor=color, markersize=4,
+                yerr=[[yerr_lower], [yerr_upper]],
+                fmt='.', ecolor=color, markersize=3,
                 capsize=4, linewidth=1, color=color,
                 alpha=alphas[idx]
             )
 
+        # get y-lim from data (excluding values with 0 total events)
+        ymax = np.max((clipped_pct+err_up)[total_events > 0]) * 1.1
+        ymax = 1.0 if ymax > 1.0 else ymax
+        ax.set_ylim(0, ymax)
+
         # formatting
-        #ax.set_ylim(0, 10)  # Set y-axis limit to 0-10%
         ax.set_title(f'ADC {i_adc} - ' + (title if title else f'ADC {i_adc}'))
         ax.set_ylabel(ylabel)
         ax.grid(True, which='both', linestyle='--', linewidth=0.5)
@@ -1048,15 +1147,11 @@ def plot_clipped_ch_fraction(prev_clipped_evts, clipped_evts, max_vals, ths,
         # save numerator and denominator for later use
         clip_passed[i_adc, :] = clipped_counts
         total_evts[i_adc, :] = total_events
-
-        # get y-lim from data (excluding values with 0 total events)
-        ymax = np.max(clipped_pct[total_events > 0]) * 1.1
-        ax.set_ylim(0, ymax)
-
+    axes[-1].set_xlabel('channel #')
     plt.tight_layout()
     plt.show()
     # save as pdf
-    output_pdf = f"{args.output_dir}/{output_name}"
+    output_pdf = f"{args.tmp_dir}/{output_name}"
     with PdfPages(output_pdf) as pdf:
         pdf.savefig()
         plt.close()
@@ -1119,36 +1214,38 @@ def plot_neg_tpc_fraction(prev_neg_evts, neg_evts, max_vals, ths,
                 [idx - 0.5, idx + 0.5], [c - l, c - l], [c + u, c + u],
                 color='red', alpha=alphas[idx]/4, step='post'
             )
+        # current file
+        color = 'b'
 
-        color = 'b' #if neg_pct[idx] > 0 else 'g'
+        # point + Clopper–Pearson error bars
+        yerr_lower = max(err_low[idx], 0)
+        yerr_upper = max(err_up[idx], 0)
         ax.errorbar(
             idx, neg_pct[idx],
-            yerr=[[err_low[idx]], [err_up[idx]]],
-            fmt='.', ecolor=color, markersize=4,
+            yerr=[[yerr_lower], [yerr_upper]],
+            fmt='.', ecolor=color, markersize=3,
             capsize=4, linewidth=1, color=color,
             alpha=alphas[idx]
         )
 
     # get y-lim from data (excluding values with 0 total events)
-    mask = total_events > 0
-    ymax = np.max(neg_pct[mask] + err_up[mask]) * 1.1
+    ymax = np.max((neg_pct+err_up)[total_events > 0]) * 1.1
+    ymax = 1.0 if ymax > 1.0 else ymax
     ax.set_ylim(0, ymax)
 
     # formatting
-    #x.set_ylim(0,100)
-    ax.set_title(f'ADC {i_adc} - ' + (title if title else f'ADC {i_adc}'))
+    ax.set_title(f'ADC {i_adc} - ' + (title if title else f'ADC {i_adc} negative baselines'))
     ax.set_ylabel(ylabel)
     ax.grid(True, which='both', linestyle='--', linewidth=0.5)
 
     # save numerator and denominator for later use
     neg_passed[i_adc, :] = neg_counts
     total_evts[i_adc, :] = total_events
-
+    axes[-1].set_xlabel('channel #')
   plt.tight_layout()
   plt.show()
-
   # save as pdf
-  output_pdf = f"{args.output_dir}/{output_name}"
+  output_pdf = f"{args.tmp_dir}/{output_name}"
   with PdfPages(output_pdf) as pdf:
         pdf.savefig()
         plt.close()
@@ -1204,29 +1301,38 @@ def plot_neg_epcb_fraction(prev_neg_evts, neg_evts, max_vals, ths,
                 [idx - 0.5, idx + 0.5], [c - l, c - l], [c + u, c + u],
                 color='red', alpha=alphas[idx]/4, step='post'
             )
+        # current file
+        color = 'b'
 
-        color = 'b' #if neg_pct[idx] > 0 else 'g'
+        # point + Clopper–Pearson error bars
+        yerr_lower = max(err_low[idx], 0)
+        yerr_upper = max(err_up[idx], 0)
         ax.errorbar(
             idx, neg_pct[idx],
-            yerr=[[err_low[idx]], [err_up[idx]]],
-            fmt='.', ecolor=color, markersize=4,
+            yerr=[[yerr_lower], [yerr_upper]],
+            fmt='.', ecolor=color, markersize=3,
             capsize=4, linewidth=1, color=color,
             alpha=alphas[idx]
         )
 
+    # get y-lim from data (excluding values with 0 total events)
+    ymax = np.max((neg_pct+err_up)[total_events > 0]) * 1.1
+    ymax = 1.0 if ymax > 1.0 else ymax
+    ax.set_ylim(0, ymax)
+
     # formatting
-    ax.set_title(f'ADC {i_adc} - ' + (title if title else f'ADC {i_adc}'))
+    ax.set_title(f'ADC {i_adc} - ' + (title if title else f'ADC {i_adc} negative baselines'))
     ax.set_ylabel(ylabel)
     ax.grid(True, which='both', linestyle='--', linewidth=0.5)
 
     # save negative percentages and bounds
     neg_passed[i_adc, :] = neg_counts
     total_evts[i_adc, :] = total_events
-
+  axes[-1].set_xlabel('channel #')
   plt.tight_layout()
   plt.show()
   # save as pdf
-  output_pdf = f"{args.output_dir}/{output_name}"
+  output_pdf = f"{args.tmp_dir}/{output_name}"
   with PdfPages(output_pdf) as pdf:
       pdf.savefig()
       plt.close()
@@ -1257,18 +1363,34 @@ def read_from_json(file_indices, output_dir, filename):
     Read data from JSON file, loop over file indices, add in quadrature.
     If no matching entries are found, return None.
     """
+
+    # Return None if file_indices is None or empty
     if file_indices is None or len(file_indices) == 0:
         return None
-    data_c = []
-    data_l = []
-    data_u = []
-    with open(output_dir + filename, 'r') as f:
-        for line in f:
-            entry = json.loads(line)
-            if entry['file_index'] in file_indices:
-                data_c.append(entry['data_c'])
-                data_l.append(entry['data_l'])
-                data_u.append(entry['data_u'])
+
+    # Check if file exists
+    filepath = os.path.join(output_dir, filename)
+    if not os.path.exists(filepath):
+        print(f"JSON file not found: {filepath}, not making comparisons")
+        return None
+
+    # Read the JSON file and collect data for the specified file indices
+    data_c, data_l, data_u = [], [], []
+    try:
+        with open(filepath, 'r') as f:
+            for line in f:
+                try:
+                    entry = json.loads(line)
+                    if entry.get('file_index') in file_indices:
+                        data_c.append(entry['data_c'])
+                        data_l.append(entry['data_l'])
+                        data_u.append(entry['data_u'])
+                except json.JSONDecodeError:
+                    print(f"Skipping malformed line in {filepath}: {line.strip()}")
+    except Exception as e:
+        print(f"Error reading {filepath}: {e}")
+        return None
+
     # if data_c is empty return none
     if len(data_c) == 0:
         return None
@@ -1313,24 +1435,41 @@ def save_eff_as_json(file_index, passed, totals, output_dir, filename):
         f.write('\n')
         f.close()
 
+
 def read_eff_from_json(file_indices, output_dir, filename):
     """
     Read efficiency data from JSON file, loop over file indices,
     combine the passes and totals
     """
+    # Return None if file_indices is None or empty
     if file_indices is None or len(file_indices) == 0:
         return None
-    passed = []
-    totals = []
-    with open(output_dir+filename, 'r') as f:
-        for line in f:
-            entry = json.loads(line)
-            if entry['file_index'] in file_indices:
-                passed.append(entry['pass'])
-                totals.append(entry['totals'])
-        f.close()
+
+    # Check if file exists
+    filepath = os.path.join(output_dir, filename)
+    if not os.path.exists(filepath):
+        print(f"Efficiency JSON file not found: {filepath}, not making comparisons")
+        return None
+
+    # Read the JSON file and collect data for the specified file indices
+    passed, totals = [], []
+    try:
+        with open(filepath, 'r') as f:
+            for line in f:
+                try:
+                    entry = json.loads(line)
+                    if entry.get('file_index') in file_indices:
+                        passed.append(entry['pass'])
+                        totals.append(entry['totals'])
+                except json.JSONDecodeError:
+                    print(f"Skipping malformed line in {filepath}: {line.strip()}")
+            f.close()
+    except Exception as e:
+        print(f"Error reading {filepath}: {e}")
+        return None
+
     # if passed is empty return none
-    if len(passed) == 0:
+    if len(passed) == 0 or len(totals) == 0:
         return None
     # sum
     passed = np.sum(np.array(passed), axis=0)
@@ -1338,6 +1477,19 @@ def read_eff_from_json(file_indices, output_dir, filename):
 
     return passed, totals
 
+# function to produce placeholder pdf when try/except fails
+def placeholder_pdf(output_dir, filename, message):
+    """
+    Create a placeholder PDF with an error message.
+    """
+    output_pdf = os.path.join(output_dir, filename)
+    fig, ax = plt.subplots(figsize=(8, 6))
+    ax.text(0.5, 0.5, message, fontsize=12, ha='center', va='center')
+    ax.axis('off')
+    with PdfPages(output_pdf) as pdf:
+        pdf.savefig(fig)
+        plt.close()
+    print(f"Placeholder PDF created: {output_pdf}")
 
 # ----------------------------- #
 #             Main              #
@@ -1347,7 +1499,10 @@ def main():
     """
     Main entry point for DUNE light file processing and plotting.
     """
-    from ascii import header, footer
+    # start timer
+    start_time = time.time()
+
+    # print header
     header()
 
     args = parse_args()
@@ -1355,16 +1510,31 @@ def main():
         print(f"Invalid units: {args.units}. Must be 'ADC16', 'ADC14', or 'V'.")
         sys.exit(1)
 
-    # start timer
-    start_time = time.time()
+    if args.powspec_nevts < args.max_evts:
+        print("Number of events for the power spectrum can't be greater than the total events")
+        # set powerspec_nevts to max_evts
+        args.powspec_nevts = args.max_evts
+        print(f"Setting powerspec_nevts to {args.max_evts} (beware of memory issues with large nevts)")
 
+    try:
+        os.makedirs(args.output_dir, exist_ok=True)
+        print(f"Output directory is ready: {args.output_dir}")
+    except Exception as e:
+        print(f"Error creating output directory {args.output_dir}: {e}")
+        raise
+
+    try:
+        os.makedirs(args.tmp_dir, exist_ok=True)
+        print(f"Temporary directory is ready: {args.tmp_dir}")
+    except Exception as e:
+        print(f"Error creating temporary directory {args.tmp_dir}: {e}")
+        raise
 
     # search for any files in --input_path starting with args.name_conv and ending with '.FLOW.hdf5'
-    import os
-    all_files = [f for f in os.listdir(args.input_path) if f.startswith(args.name_conv) and f.endswith('.FLOW.hdf5')]
+    all_files = [f for f in os.listdir(args.input_path) if f.startswith(args.file_syntax) and f.endswith('.FLOW.hdf5')]
     all_files.sort()
     n_available_files = len(all_files)
-    print(f"Found {n_available_files} files in {args.input_path} starting with {args.name_conv} and ending with .FLOW.hdf5")
+    print(f"Found {n_available_files} files in {args.input_path} starting with {args.file_syntax} and ending with .FLOW.hdf5")
     if n_available_files == 0:
         print("No files found. Exiting.")
         sys.exit(1)
@@ -1375,23 +1545,27 @@ def main():
         args.nfiles = n_available_files - args.start_file
         print(f"Adjusting number of files to process to {args.nfiles} to avoid going out of range.")
 
-    # files
-    #files_arr = np.arange(args.start_file, args.start_file +args.nfiles, 1)
-
     file_time = start_time
-
-    for i_file in range(args.start_file, args.start_file + args.nfiles):
-        filename = f'{args.input_path}{all_files[i_file]}'
-    #for i_file in files_arr:
+    for i_file in range(args.start_run, args.start_run + args.nfiles, 1):
 
         # Construct the filename based on the input path and file index
-        # mpd_run_hvramp_rctl_105_p
-        # mpd_run_dbg_rctl_
-        #filename = f'{args.input_path}{args.name_conv}{i_file}.FLOW.hdf5'
+        filename = f'{args.input_path}{all_files[i_file]}'
+
+        # Skip if file does not exist
+        if not os.path.exists(filename):
+            print(f"File not found, skipping: {filename}")
+            continue
+        proc_files += 1
         print(f"Processing file: {filename} with units: {args.units}")
+
         ptps = get_ptps(args.units)
-        file = h5py.File(filename, 'r')
-        print(f"File opened successfully: {filename}")
+
+        try:
+            file = h5py.File(filename, 'r')
+            print(f"File opened successfully: {filename}")
+        except Exception as e:
+            print(f"Error opening {filename}: {e}")
+            continue
 
         # Get start and end timestamps in ms
         start_timestamp = file["light/events/data"][0]['utime_ms'][0]
@@ -1400,8 +1574,7 @@ def main():
         # Convert to UTC datetime string
         start_utc = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(start_timestamp / 1000))
         end_utc = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(end_timestamp / 1000))
-        #print(f"File start time (UTC): {start_utc}")
-        #print(f"File end time (UTC): {end_utc}")
+
         # Convert to US Central Time (UTC-6)
         start_central = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(start_timestamp / 1000 - 6 * 3600))
         end_central = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(end_timestamp / 1000 - 6 * 3600))
@@ -1416,284 +1589,496 @@ def main():
         else:
             ncomps = np.arange(i_file-args.ncomp, i_file, 1)
 
+        # get n events to process
+        nevents_total = file["light/wvfm/data"]['samples'].shape[0]
+        evts_to_process = args.max_evts
+        if args.max_evts > nevents_total:
+            print(f"Total number of events to process {args.max_evts} is less than the number of events in the file {nevents_total}, changing to total events")
+            evts_to_process = nevents_total
+
+        # select evenly spaced indices up to max_evts
+        sel_idx = np.linspace(0, nevents_total - 1, evts_to_process, dtype=int)
+        sel_idx = np.unique(sel_idx)  # ensure unique indices
+
         # define datasets for beam trigger type
+        beam_mask = sel_idx[file["light/events/data"]['trig_type'][sel_idx] == 1]
         beam_wvfms, beam_noises, beam_baselines, beam_max_values, beam_clipped, beam_negs = get_waveform_info(
-            file["light/wvfm/data"]['samples'][:args.max_evts], args.units, mask = np.where(file["light/events/data"]['trig_type'][:args.max_evts] == 1)[0], ths=ptps)
-        print("    Number of beam events:", beam_wvfms.shape[0])
+            file["light/wvfm/data"]['samples'], args.units, mask=beam_mask, ths=ptps)
+        nbeam_evts = beam_wvfms.shape[0]
+
+
         # define datasets for self-trigger type
+        strig_mask = sel_idx[file["light/events/data"]['trig_type'][sel_idx] == 0]
         strig_wvfms, strig_noises, strig_baselines, strig_max_values, strig_clipped, strig_negs = get_waveform_info(
-            file["light/wvfm/data"]['samples'][:args.max_evts], args.units, mask = np.where(file["light/events/data"]['trig_type'][:args.max_evts] == 0)[0], ths=ptps)
-        print("    Number of self-trigger events:", strig_wvfms.shape[0])
+            file["light/wvfm/data"]['samples'], args.units, mask=strig_mask, ths=ptps)
+        nstrig_evts = strig_wvfms.shape[0]
+
+
         # define datasets for all events
-        wvfms, noises, baselines, max_values, clipped, negs = get_waveform_info(file["light/wvfm/data"]['samples'][:args.max_evts], args.units, ths=ptps)
-        print("    Total number of events:", wvfms.shape[0])
+        wvfms, noises, baselines, max_values, clipped, negs = get_waveform_info(
+            file["light/wvfm/data"]['samples'], args.units, mask=sel_idx, ths=ptps)
+        nevts = wvfms.shape[0]
+
+        ###############################################################
+        # WORK IN PROGRESS TO TRACK RATIO OF BEAM TO SELF-TRIG EVENTS #
+        ###############################################################
+
         print(f"Waveform info extracted for file: {filename}")
+        print("    Total number of events:", wvfms.shape[0])
+        print("    Number of beam events:", beam_wvfms.shape[0],
+              (f"{100*beam_wvfms.shape[0]/wvfms.shape[0]:.1f}%" if wvfms.shape[0]>0 else "N/A"))
+        print("    Number of self-trigger events:", strig_wvfms.shape[0],
+              (f"{100*strig_wvfms.shape[0]/wvfms.shape[0]:.1f}%" if wvfms.shape[0]>0 else "N/A"))
+
 
         ### DQM PLOTS ###
 
         # identify event with largest total integral
         integrals = np.sum(wvfms, axis=(1,2,3))
         max_integral_evt = np.argmax(integrals)
+
+        ####################################################################
+        # WIP: find a way to make this a tag for sparking / discharge events
         evts = np.array([max_integral_evt])
-        for evt in evts:
-            plot_sum_waveform(wvfms - baselines[:, :, :, np.newaxis],
-                              args.units, i_evt=evt, output_name='plot_0.pdf')
-        print(f"Sum waveform plotted for file: {filename}")
+        ####################################################################
 
-        # noise spectra
-        max_mask = get_max_value_mask(
-            max_values[:args.powspec_nevts], ptps
-        )
-        #print("    Calculating noise spectra ({} events)".format(args.powspec_nevts))
-        wvfms_v = adc16_to_voltage(file["light/wvfm/data"]['samples'][:args.powspec_nevts])
-        freq_bins, noise_spectra, noise_spectrum, upper, lower = get_noise_spectra(
-            wvfms_v, max_mask
-        )
-        rois_mhz = np.array([0.5, 1.8, 4.6, 7.1, 8.5, 10, 11.5, 19, 20, 25, 30])
-        # convert to index from frequency bins
-        rois_bins = np.array([np.argmin(np.abs(freq_bins*1e-6 - roi)) for roi in rois_mhz])
+        # sum waveform baselined
+        try:
+            for evt in evts:
+                plot_sum_waveform(wvfms - baselines[:, :, :, np.newaxis],
+                          args.units, i_evt=evt, output_name='plot1_sumwvfm.pdf')
+            print(f"Sum waveform plotted for file: {filename}")
+        except Exception as e:
+            placeholder_pdf(args.output_dir, 'plot1_sumwvfm.pdf',
+                            "Failed to plot summed waveforms: plot1_sumwvfm.pdf")
+            traceback.print_exc()
 
-        # loop over rois, and save spectrum bin
-        for i_roi in range(len(rois_bins)):
-            roi_bin = rois_bins[i_roi]
-            spur = noise_spectrum[:, :, roi_bin]
-            # convert to string and replace '.' with '_'
-            roi_mhz = str(rois_mhz[i_roi]).replace('.', '_')
-            save_spectra_as_json(
-                i_file, spur, args.output_dir,
-                f'noise_spectra_roi_{roi_mhz}mhz.json'
+        # noise power spectra and rois
+        try:
+            # get mask
+            max_mask = get_max_value_mask(
+                max_values[:args.powspec_nevts], ptps
             )
-        del wvfms_v
-        plot_noise_spectra_epcb(
-            freq_bins, noise_spectrum, None, None,
-            skip_bad_channels=True, nevts=args.powspec_nevts,
-            output_name='plot_1.pdf',
-        )
-        #plot_noise_spectra_channels(
-        #    freq_bins, noise_spectrum, None, None,
-        #    skip_bad_channels=True, nevts=args.powspec_nevts,
-        #    output_name='plot_0.pdf'
-        #)
-        print(f"Noise spectra calculated for file: {filename}")
+            wvfms_v = adc16_to_voltage(wvfms[:args.powspec_nevts])
+            process_powsp_evts = len(wvfms_v)
 
-        # Plot noise
-        prev_noises = read_from_json(
-            ncomps, args.output_dir, 'noises.json'
-        ) if i_file - args.start_file > 0 else None
-        noise_c, noise_l, noise_u = plot_noises(prev_noises,
-            strig_noises, i_evt=np.arange(0, strig_baselines.shape[0], 1),
-            mask_inactive=False, output_name='plot_2.pdf'
-        )
-        save_as_json(i_file, noise_c, noise_l, noise_u,
-                     args.output_dir, 'noises.json')
+            freq_bins, noise_spectra, noise_spectrum, upper, lower = get_noise_spectra(
+                wvfms_v) #, max_mask)
+            rois_mhz = np.array([0.5, 1.8, 4.6, 7.1, 8.5, 10, 11.5, 19, 20, 25, 30])
+            # convert to index from frequency bins
+            rois_bins = np.array([np.argmin(np.abs(freq_bins*1e-6 - roi)) for roi in rois_mhz])
 
-        # Plot baselines
-        prev_baselines = read_from_json(
-            ncomps, args.output_dir, 'baselines.json'
-        ) if i_file - args.start_file > 0 else None
-        bline_c, bline_l, bline_u = plot_baselines(prev_baselines,
-            strig_baselines, i_evt=np.arange(0, strig_baselines.shape[0], 1),
-            mask_inactive=False, output_name='plot_3.pdf'
-        )
-        save_as_json(i_file, bline_c, bline_l, bline_u,
-                     args.output_dir, 'baselines.json')
-        print(f"Noise and baselines plotted for file: {filename}")
+            # loop over rois, and save spectrum bin to json for tracking rois over time
+            for i_roi in range(len(rois_bins)):
+                roi_bin = rois_bins[i_roi]
+                spur = noise_spectrum[:, :, roi_bin]
+                # convert to string and replace '.' with '_' for naming convention
+                roi_mhz = str(rois_mhz[i_roi]).replace('.', '_')
+                # save to json
+                if args.write_json_blobs:
+                    save_spectra_as_json(
+                        i_file, spur, args.output_dir,
+                        f'noise_spectra_roi_{roi_mhz}mhz.json'
+                    )
+            # free memory
+            del wvfms_v
 
-        # Plot clipped fraction for total
-        # beam events
-        prev_beam_clipped_inputs = read_eff_from_json(
-            ncomps, args.output_dir, 'clipped_total_beam.json'
-        ) if i_file - args.start_file > 0 else None
-        prev_beam_clipped = clopper_pearson(
-            prev_beam_clipped_inputs[0], prev_beam_clipped_inputs[1]
-        ) if prev_beam_clipped_inputs is not None else None
-        clip_pass, clip_tot = plot_clipped_fraction(
-            prev_beam_clipped, beam_clipped,
-            title='Beam trigger', output_name='plot_4.pdf'
-        )
-        save_eff_as_json(i_file, clip_pass, clip_tot,
-                        args.output_dir, 'clipped_total_beam.json')
-        # self-trigger
-        prev_strig_clipped_inputs = read_eff_from_json(
-            ncomps, args.output_dir, 'clipped_total_self.json'
-        ) if i_file - args.start_file > 0 else None
-        prev_strig_clipped = clopper_pearson(
-            prev_strig_clipped_inputs[0], prev_strig_clipped_inputs[1]
-        ) if prev_strig_clipped_inputs is not None else None
-        clip_pass, clip_tot  = plot_clipped_fraction(
-            prev_strig_clipped, strig_clipped,
-            title='Self-trigger', output_name='plot_5.pdf'
-        )
-        save_eff_as_json(i_file, clip_pass, clip_tot,
-                        args.output_dir, 'clipped_total_self.json')
-        print(f"Clipped fraction plotted for file: {filename}")
+            # plot full spectrum
+            plot_noise_spectra_epcb(
+                freq_bins, noise_spectrum, None, None,
+                skip_bad_channels=True, nevts=process_powsp_evts,
+                output_name='plot5_powspec.pdf',
+            )
+            print(f"Noise spectra calculated for file: {filename}")
 
-        # Plot clipped fraction for events with light on the channels' TPC
-        # beam trigger
-        prev_beam_clipped_inputs = read_eff_from_json(
-            ncomps, args.output_dir, 'clipped_tpc_beam.json'
-        ) if i_file - args.start_file > 0 else None
-        prev_beam_clipped = clopper_pearson(
-            prev_beam_clipped_inputs[0], prev_beam_clipped_inputs[1]
-        ) if prev_beam_clipped_inputs is not None else None
-        clip_pass, clip_tot = plot_clipped_tpc_fraction(
-            prev_beam_clipped, beam_clipped, beam_max_values, ptps,
-            title='Beam trigger', output_name='plot_6.pdf'
-        )
-        save_eff_as_json(i_file, clip_pass, clip_tot,
-                        args.output_dir, 'clipped_tpc_beam.json')
-        # self-trigger
-        prev_strig_clipped_inputs = read_eff_from_json(
-            ncomps, args.output_dir, 'clipped_tpc_self.json'
-        ) if i_file - args.start_file > 0 else None
-        prev_strig_clipped = clopper_pearson(
-            prev_strig_clipped_inputs[0], prev_strig_clipped_inputs[1]
-        ) if prev_strig_clipped_inputs is not None else None
-        clip_pass, clip_tot = plot_clipped_tpc_fraction(
-            prev_strig_clipped, strig_clipped, strig_max_values, ptps,
-            title='Self-trigger', output_name='plot_7.pdf'
-        )
-        save_eff_as_json(i_file, clip_pass, clip_tot,
-                        args.output_dir, 'clipped_tpc_self.json')
-        print(f"Clipped TPC fraction plotted for file: {filename}")
+        except Exception as e:
+            placeholder_pdf(args.output_dir, 'plot5_powspec.pdf',
+                            "Failed to plot noise spectra: plot5_powspec.pdf")
+            traceback.print_exc()
 
-        # Plot clipped fraction for events with light on the channels' EPCB
-        # beam trigger
-        prev_beam_clipped_inputs = read_eff_from_json(
-            ncomps, args.output_dir, 'clipped_epcb_beam.json'
-        ) if i_file - args.start_file > 0 else None
-        prev_beam_clipped = clopper_pearson(
-            prev_beam_clipped_inputs[0], prev_beam_clipped_inputs[1]
-        ) if prev_beam_clipped_inputs is not None else None
-        clip_pass, clip_tot = plot_clipped_epcb_fraction(
-            prev_beam_clipped, beam_clipped, beam_max_values, ptps,
-            "Beam trigger", output_name='plot_8.pdf'
-        )
-        save_eff_as_json(i_file, clip_pass, clip_tot,
-                        args.output_dir, 'clipped_epcb_beam.json')
-        # self-trigger
-        prev_strig_clipped_inputs = read_eff_from_json(
-            ncomps, args.output_dir, 'clipped_epcb_self.json'
-        ) if i_file - args.start_file > 0 else None
-        prev_strig_clipped = clopper_pearson(
-            prev_strig_clipped_inputs[0], prev_strig_clipped_inputs[1]
-        ) if prev_strig_clipped_inputs is not None else None
-        clip_pass, clip_tot = plot_clipped_epcb_fraction(
-            prev_strig_clipped, strig_clipped, strig_max_values, ptps,
-            "Self-trigger", output_name='plot_9.pdf'
-        )
-        save_eff_as_json(i_file, clip_pass, clip_tot,
-                        args.output_dir, 'clipped_epcb_self.json')
-        print(f"Clipped EPCB fraction plotted for file: {filename}")
 
-        # plot clipped fraction for events with light on the channel itself
-        # beam trigger
-        prev_beam_clipped_inputs = read_eff_from_json(
-            ncomps, args.output_dir, 'clipped_ch_beam.json'
-        ) if i_file - args.start_file > 0 else None
-        prev_beam_clipped = clopper_pearson(
-            prev_beam_clipped_inputs[0], prev_beam_clipped_inputs[1]
-        ) if prev_beam_clipped_inputs is not None else None
-        clip_pass, clip_tot = plot_clipped_ch_fraction(
-            prev_beam_clipped, beam_clipped, beam_max_values, ptps,
-            "Beam trigger", output_name='plot_10.pdf'
-        )
-        save_eff_as_json(i_file, clip_pass, clip_tot,
-                        args.output_dir, 'clipped_ch_beam.json')
-        # self-trigger
-        prev_strig_clipped_inputs = read_eff_from_json(
-            ncomps, args.output_dir, 'clipped_ch_self.json'
-        ) if i_file - args.start_file > 0 else None
-        prev_strig_clipped = clopper_pearson(
-            prev_strig_clipped_inputs[0], prev_strig_clipped_inputs[1]
-        ) if prev_strig_clipped_inputs is not None else None
-        clip_pass, clip_tot = plot_clipped_ch_fraction(
-            prev_strig_clipped, strig_clipped, strig_max_values, ptps,
-            "Self-trigger Trigger", output_name='plot_11.pdf'
-        )
-        save_eff_as_json(i_file, clip_pass, clip_tot,
-                        args.output_dir, 'clipped_ch_self.json')
-        print(f"Clipped channel fraction plotted for file: {filename}")
+        # reading and writing noise widths
+        try:
+            # read noises
+            prev_noises = read_from_json(
+                ncomps, args.output_dir, 'noises.json'
+            ) if i_file - args.start_run > 0 else None
+            # Plot noises
+            noise_c, noise_l, noise_u = plot_noises(prev_noises,
+                strig_noises, i_evt=np.arange(0, strig_baselines.shape[0], 1),
+                mask_inactive=False, output_name='plot4_noises.pdf'
+            )
+            # write noises
+            if args.write_json_blobs:
+                save_as_json(
+                    i_file, noise_c, noise_l, noise_u,
+                    args.output_dir, 'noises.json'
+                )
+            print(f"Noises plotted for file: {filename}")
 
-        # plot negative spike fraction for events with light on the channels' TPC
-        # beam trigger
-        prev_beam_negs_inputs = read_eff_from_json(
-            ncomps, args.output_dir, 'negatives_tpc_beam.json'
-        ) if i_file - args.start_file > 0 else None
-        prev_beam_negs = clopper_pearson(
-            prev_beam_negs_inputs[0], prev_beam_negs_inputs[1]
-        ) if prev_beam_negs_inputs is not None else None
-        negs_pass, negs_tot = plot_neg_tpc_fraction(
-            prev_beam_negs, beam_negs, beam_max_values, ptps,
-            "Beam trigger", "plot_12.pdf"
-        )
-        save_eff_as_json(i_file, negs_pass, negs_tot,
-                        args.output_dir, 'negatives_tpc_beam.json')
-        # self-trigger
-        prev_strig_negs_inputs = read_eff_from_json(
-            ncomps, args.output_dir, 'negatives_tpc_self.json'
-        ) if i_file - args.start_file > 0 else None
-        prev_strig_negs = clopper_pearson(
-            prev_strig_negs_inputs[0], prev_strig_negs_inputs[1]
-        ) if prev_strig_negs_inputs is not None else None
-        negs_pass, negs_tot = plot_neg_tpc_fraction(
-            prev_strig_negs, strig_negs, strig_max_values, ptps,
-            "Self-trigger", "plot_13.pdf"
-        )
-        save_eff_as_json(i_file, negs_pass, negs_tot,
-                        args.output_dir, 'negatives_tpc_self.json')
-        print(f"Negative spike TPC fraction plotted for file: {filename}")
+        except Exception as e:
+            placeholder_pdf(args.output_dir, 'plot4_noises.pdf',
+                            "Failed to plot noises: plot4_noises.pdf")
+            traceback.print_exc()
 
-        # plot negative spike fraction for events with lig`-
-        # n the channels' EPCB
-        # beam trigger
-        prev_beam_negs_inputs = read_eff_from_json(
-            ncomps, args.output_dir, 'negatives_epcb_beam.json'
-        ) if i_file - args.start_file > 0 else None
-        prev_beam_negs = clopper_pearson(
-            prev_beam_negs_inputs[0], prev_beam_negs_inputs[1]
-        ) if prev_beam_negs_inputs is not None else None
-        negs_pass, negs_tot = plot_neg_epcb_fraction(
-            prev_beam_negs, beam_negs, beam_max_values, ptps,
-            "Beam trigger", "plot_14.pdf"
-        )
-        save_eff_as_json(i_file, negs_pass, negs_tot,
-                        args.output_dir, 'negatives_epcb_beam.json')
-        # self-trigger
-        prev_strig_negs_inputs = read_eff_from_json(
-            ncomps, args.output_dir, 'negatives_epcb_self.json'
-        ) if i_file - args.start_file > 0 else None
-        prev_strig_negs = clopper_pearson(
-            prev_strig_negs_inputs[0], prev_strig_negs_inputs[1]
-        ) if prev_strig_negs_inputs is not None else None
-        negs_pass, negs_tot = plot_neg_epcb_fraction(
-            prev_strig_negs, strig_negs, strig_max_values, ptps,
-            "Self-trigger ", "plot_15.pdf"
-        )
-        save_eff_as_json(i_file, negs_pass, negs_tot,
-                        args.output_dir, 'negatives_epcb_self.json')
-        print(f"Negative spike EPCB fraction plotted for file: {filename}")
+
+        # reading and writing baselines
+        try:
+            # read baselines
+            prev_baselines = read_from_json(
+                ncomps, args.output_dir, 'baselines.json'
+            ) if i_file - args.start_run > 0 else None
+            # Plot baselines
+            bline_c, bline_l, bline_u = plot_baselines(prev_baselines,
+                strig_baselines, i_evt=np.arange(0, strig_baselines.shape[0], 1),
+                mask_inactive=False, output_name='plot2_baselines.pdf'
+            )
+            # write baselines
+            if args.write_json_blobs: save_as_json(i_file, bline_c, bline_l, bline_u,
+                         args.output_dir, 'baselines.json')
+            print(f"Baselines plotted for file: {filename}")
+
+        except Exception as e:
+            placeholder_pdf(args.output_dir, 'plot2_baselines.pdf',
+                            "Failed to plot baselines: plot2_baselines.pdf")
+            traceback.print_exc()
+
+
+        # for beam events, ADC clipping fraction for waveforms
+        if nbeam_evts:
+            try:
+                # read clipped fraction for events with light on the channels' EPCB
+                prev_beam_clipped_inputs = read_eff_from_json(
+                    ncomps, args.output_dir, 'clipped_epcb_beam.json'
+                ) if i_file - args.start_run > 0 else None
+                # get error bars
+                prev_beam_clipped = clopper_pearson(
+                    prev_beam_clipped_inputs[0], prev_beam_clipped_inputs[1]
+                ) if prev_beam_clipped_inputs is not None else None
+                # Plot clipped fraction for events with light on the channels' EPCB
+                clip_pass, clip_tot = plot_clipped_epcb_fraction(
+                    prev_beam_clipped, beam_clipped, beam_max_values, ptps,
+                    "Beam trigger (% of events with clipped waveforms, normalized per ECPB)",
+                    output_name='plot6_clipped_beam_epcb.pdf'
+                )
+                # write clipped fraction for events with light on the channels' EPCB
+                if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
+                                args.output_dir, 'clipped_epcb_beam.json')
+                print(f"Clipped EPCB fraction plotted for file: {filename}")
+
+                if args.plot_all_clipped:
+
+                    ####################################################################################
+                    # WIP: consider option which requests plotting of CH, EPCB, TPC, TOT in a list arg #
+                    ####################################################################################
+
+                    '''
+                    # read total clipped fraction for beam trigger
+                    prev_beam_clipped_inputs = read_eff_from_json(
+                        ncomps, args.output_dir, 'clipped_total_beam.json'
+                    ) if i_file - args.start_run > 0 else None
+                    # get error bars
+                    prev_beam_clipped = clopper_pearson(
+                        prev_beam_clipped_inputs[0], prev_beam_clipped_inputs[1]
+                    ) if prev_beam_clipped_inputs is not None else None
+                    # Plot clipped fraction for events with light on the whole detector
+                    clip_pass, clip_tot = plot_clipped_fraction(
+                        prev_beam_clipped, beam_clipped,
+                        title='Beam trigger (% of events with clipped waveforms)',
+                        output_name='plot6_clipped_beam.pdf'
+                    )
+                    # write total clipped fraction for beam trigger
+                    if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
+                                    args.output_dir, 'clipped_total_beam.json')
+                    print(f"Clipped fraction total plotted for file: {filename}")
+
+                    # read tpc clipped fraction for beam trigger
+                    prev_beam_clipped_inputs = read_eff_from_json(
+                        ncomps, args.output_dir, 'clipped_tpc_beam.json'
+                    ) if i_file - args.start_run > 0 else None
+                    # get error bars
+                    prev_beam_clipped = clopper_pearson(
+                        prev_beam_clipped_inputs[0], prev_beam_clipped_inputs[1]
+                    ) if prev_beam_clipped_inputs is not None else None
+                    # Plot clipped fraction for events with light on the channels' TPC
+                    clip_pass, clip_tot = plot_clipped_tpc_fraction(
+                        prev_beam_clipped, beam_clipped, beam_max_values, ptps,
+                        title='Beam trigger (% of events with clipped waveforms, normalized per TPC)',
+                        output_name='plot6_clipped_beam_tpc.pdf'
+                    )
+                    # write tpc clipped fraction for beam trigger
+                    if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
+                                    args.output_dir, 'clipped_tpc_beam.json')
+                    print(f"Clipped TPC fraction plotted for file: {filename}")
+                    '''
+
+                    # read beam trigger channel clipped fraction
+                    prev_beam_clipped_inputs = read_eff_from_json(
+                        ncomps, args.output_dir, 'clipped_ch_beam.json'
+                    ) if i_file - args.start_run > 0 else None
+                    # get error bars
+                    prev_beam_clipped = clopper_pearson(
+                        prev_beam_clipped_inputs[0], prev_beam_clipped_inputs[1]
+                    ) if prev_beam_clipped_inputs is not None else None
+                    # Plot clipped fraction for channels
+                    clip_pass, clip_tot = plot_clipped_ch_fraction(
+                        prev_beam_clipped, beam_clipped, beam_max_values, ptps,
+                        "Beam trigger (% of events with clipped waveforms, normalized per channel)",
+                        output_name='plot6_clipped_beam_ch.pdf'
+                    )
+                    # write beam trigger channel clipped fraction
+                    if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
+                                    args.output_dir, 'clipped_ch_beam.json')
+                    print(f"Clipped channel fraction plotted for file: {filename}")
+
+            except Exception as e:
+                placeholder_pdf(args.output_dir, 'plot6_clipped_beam_epcb.pdf',
+                                "Failed to plot clipped fraction for beam events: plot6_clipped_beam_ch.pdf"
+                )
+                traceback.print_exc()
+
+
+        # for self-trigger events, ADC clipping fraction for waveforms
+        if nstrig_evts:
+            try:
+               # read clipped fraction for events with light on the channels' EPCB
+                prev_strig_clipped_inputs = read_eff_from_json(
+                    ncomps, args.output_dir, 'clipped_epcb_self.json'
+                ) if i_file - args.start_run > 0 else None
+                # get error bars
+                prev_strig_clipped = clopper_pearson(
+                    prev_strig_clipped_inputs[0], prev_strig_clipped_inputs[1]
+                ) if prev_strig_clipped_inputs is not None else None
+                # Plot clipped fraction for events with light on the channels' EPCB
+                clip_pass, clip_tot = plot_clipped_epcb_fraction(
+                    prev_strig_clipped, strig_clipped, strig_max_values, ptps,
+                    "Self-trigger (% of events with clipped waveforms, normalized per EPCB)",
+                    output_name='plot_clipped6_self_epcb.pdf'
+                )
+                # write clipped fraction for events with light on the channels' EPCB
+                if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
+                                args.output_dir, 'clipped_epcb_self.json')
+                print(f"Clipped EPCB fraction plotted for file: {filename}")
+
+                if args.plot_all_clipped:
+
+                    ####################################################################################
+                    # WIP: consider option which requests plotting of CH, EPCB, TPC, TOT in a list arg #
+                    ####################################################################################
+
+                    '''
+                    # read total clipped fraction
+                    prev_strig_clipped_inputs = read_eff_from_json(
+                        ncomps, args.output_dir, 'clipped_total_self.json'
+                    ) if i_file - args.start_run > 0 else None
+                    # get error bars
+                    prev_strig_clipped = clopper_pearson(
+                        prev_strig_clipped_inputs[0], prev_strig_clipped_inputs[1]
+                    ) if prev_strig_clipped_inputs is not None else None
+                    # Plot clipped fraction for events with light on the whole detector
+                    clip_pass, clip_tot  = plot_clipped_fraction(
+                        prev_strig_clipped, strig_clipped,
+                        title='Self-trigger (% of events with clipped waveforms)',
+                        output_name='plot6_clipped_self.pdf'
+                    )
+                    # write total clipped fraction
+                    if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
+                                    args.output_dir, 'clipped_total_self.json')
+                    print(f"Clipped fraction plotted for file: {filename}")
+
+                    # read tpc clipped fraction
+                    prev_strig_clipped_inputs = read_eff_from_json(
+                        ncomps, args.output_dir, 'clipped_tpc_self.json'
+                    ) if i_file - args.start_run > 0 else None
+                    # get error bars
+                    prev_strig_clipped = clopper_pearson(
+                        prev_strig_clipped_inputs[0], prev_strig_clipped_inputs[1]
+                    ) if prev_strig_clipped_inputs is not None else None
+                    # Plot clipped fraction for events with light on the channels' TPC
+                    clip_pass, clip_tot = plot_clipped_tpc_fraction(
+                        prev_strig_clipped, strig_clipped, strig_max_values, ptps,
+                        title='Self-trigger (% of events with clipped waveforms, normalized per TPC)',
+                        output_name='plot6_clipped_self_tpc.pdf'
+                    )
+                    # write tpc clipped fraction
+                    if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
+                                    args.output_dir, 'clipped_tpc_self.json')
+                    print(f"Clipped TPC fraction plotted for file: {filename}")
+                    '''
+                    # read channel clipped fraction
+                    prev_strig_clipped_inputs = read_eff_from_json(
+                        ncomps, args.output_dir, 'clipped_ch_self.json'
+                    ) if i_file - args.start_run > 0 else None
+                    # get error bars
+                    prev_strig_clipped = clopper_pearson(
+                        prev_strig_clipped_inputs[0], prev_strig_clipped_inputs[1]
+                    ) if prev_strig_clipped_inputs is not None else None
+                    # Plot clipped fraction for channels
+                    clip_pass, clip_tot = plot_clipped_ch_fraction(
+                        prev_strig_clipped, strig_clipped, strig_max_values, ptps,
+                        "Self-trigger Trigger  (% of events with clipped waveforms, normalized per channel)",
+                        output_name='plot_clipped8_ch_self.pdf'
+                    )
+                    # write channel clipped fraction
+                    if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
+                                    args.output_dir, 'clipped_ch_self.json')
+                    print(f"Clipped channel fraction plotted for file: {filename}")
+
+            except Exception as e:
+                placeholder_pdf(args.output_dir, 'plot_clipped6_self_ch.pdf',
+                                "Failed to plot clipped fraction for self-trigger events: plot_clipped6_self_ch.pdf")
+                traceback.print_exc()
+
+
+
+        # for beam events, negative spike fraction for waveforms
+        if nbeam_evts:
+            try:
+                # read negative spike fraction for events with light on the channels' TPC
+                prev_beam_negs_inputs = read_eff_from_json(
+                    ncomps, args.output_dir, 'negatives_tpc_beam.json'
+                ) if i_file - args.start_run > 0 else None
+                # get error bars
+                prev_beam_negs = clopper_pearson(
+                    prev_beam_negs_inputs[0], prev_beam_negs_inputs[1]
+                ) if prev_beam_negs_inputs is not None else None
+                # plot negative spike fraction for events with light on the channels' TPC
+                negs_pass, negs_tot = plot_neg_tpc_fraction(
+                    prev_beam_negs, beam_negs, beam_max_values, ptps,
+                    "Beam trigger (% of events with -ve spikes, normalized per TPC)",
+                    "plot6_negatives_beam_tpc.pdf"
+                )
+                # write negative spike fraction for events with light on the channels' TPC
+                if args.write_json_blobs: save_eff_as_json(i_file, negs_pass, negs_tot,
+                                args.output_dir, 'negatives_tpc_beam.json')
+                print(f"Negative spike TPC fraction plotted for file: {filename}")
+
+
+                if args.plot_all_negatives:
+
+                    # read negative spike fraction for events with light on the channels' EPCB
+                    prev_beam_negs_inputs = read_eff_from_json(
+                        ncomps, args.output_dir, 'negatives_epcb_beam.json'
+                    ) if i_file - args.start_run > 0 else None
+                    # get error bars
+                    prev_beam_negs = clopper_pearson(
+                        prev_beam_negs_inputs[0], prev_beam_negs_inputs[1]
+                    ) if prev_beam_negs_inputs is not None else None
+                    # plot negative spike fraction for events with light on the channels' EPCB
+                    negs_pass, negs_tot = plot_neg_epcb_fraction(
+                        prev_beam_negs, beam_negs, beam_max_values, ptps,
+                        "Beam trigger (% of events with -ve spikes, normalized per EPCB)",
+                        "plot6_negatives_beam_epcb.pdf"
+                    )
+                    # write negative spike fraction for events with light on the channels' EPCB
+                    if args.write_json_blobs: save_eff_as_json(i_file, negs_pass, negs_tot,
+                                    args.output_dir, 'negatives_epcb_beam.json')
+                    print(f"Negative spike EPCB fraction plotted for file: {filename}")
+            except Exception as e:
+                placeholder_pdf(args.output_dir, 'plot6_negatives_beam_tpc.pdf',
+                                "Failed to plot -ve spike fraction for beam events: plot6_negatives_beam_tpc.pdf"
+                )
+                traceback.print_exc()
+
+
+
+        if nstrig_evts:
+            try:
+                # self-trigger
+                prev_strig_negs_inputs = read_eff_from_json(
+                    ncomps, args.output_dir, 'negatives_tpc_self.json'
+                ) if i_file - args.start_run > 0 else None
+                # get error bars
+                prev_strig_negs = clopper_pearson(
+                    prev_strig_negs_inputs[0], prev_strig_negs_inputs[1]
+                ) if prev_strig_negs_inputs is not None else None
+                # plot negative spike fraction for events with light on the channels' TPC
+                negs_pass, negs_tot = plot_neg_tpc_fraction(
+                    prev_strig_negs, strig_negs, strig_max_values, ptps,
+                    "Self-trigger (% of events with -ve spikes, normalized per TPC)",
+                    "plot6_negatives_self_tpc.pdf"
+                )
+                # write negative spike fraction for events with light on the channels' TPC
+                if args.write_json_blobs: save_eff_as_json(i_file, negs_pass, negs_tot,
+                                args.output_dir, 'negatives_tpc_self.json')
+                print(f"Negative spike TPC fraction plotted for file: {filename}")
+
+                if args.plot_all_negatives:
+                    # read negative spike fraction for events with light on the channels' EPCB
+                    prev_strig_negs_inputs = read_eff_from_json(
+                        ncomps, args.output_dir, 'negatives_epcb_self.json'
+                    ) if i_file - args.start_run > 0 else None
+                    # get error bars
+                    prev_strig_negs = clopper_pearson(
+                        prev_strig_negs_inputs[0], prev_strig_negs_inputs[1]
+                    ) if prev_strig_negs_inputs is not None else None
+                    # plot negative spike fraction for events with light on the channels' EPCB
+                    negs_pass, negs_tot = plot_neg_epcb_fraction(
+                        prev_strig_negs, strig_negs, strig_max_values, ptps,
+                        "Self-trigger  (% of events with -ve spikes, normalized per EPCB)",
+                        "plot6_negatives_self_epcb.pdf"
+                    )
+                    # write negative spike fraction for events with light on the channels' EPCB
+                    if args.write_json_blobs: save_eff_as_json(i_file, negs_pass, negs_tot,
+                                    args.output_dir, 'negatives_epcb_self.json')
+                    print(f"Negative spike EPCB fraction plotted for file: {filename}")
+
+            except Exception as e:
+                placeholder_pdf(args.output_dir, 'plot6_negatives_self_tpc.pdf',
+                                "Failed to plot -ve spike fraction for self-trigger events: plot6_negatives_self_epcb.pdf"
+                )
+                traceback.print_exc()
+
 
         ### GRAFANA PLOTS ###
 
-        # check for flatlining channels
-        flatlined = check_flatline(
-            max_values, threshold=0.1
-        )
-        # plotting flatlined channels
-        plot_flatline_mask(
-            flatlined, cs, output_name='grafana_plot_0.pdf',
-            times = (start_central, end_central)
-        )
-        # checking for baseline fluctuations
-        baselined = check_baseline(
-            prev_baselines, (bline_c, bline_l, bline_u), units=args.units,
-        )
-        # plotting baseline fluctuations
-        plot_baseline_mask(
-            baselined, cs, output_name='grafana_plot_1.pdf',
-            times = (start_central, end_central)
-        )
+        # flatlined waveforms
+        try:
+            # check for flatlining channels
+            flatlined = check_flatline(
+                max_values, threshold=0.1
+            )
+            # plotting flatlined channels for grafana
+            plot_flatline_mask(
+                flatlined, cs, output_name=f'{args.output_dir}/{args.file_syntax}{args.start_run}_light_dqm_flatline.png',
+                times = (start_central, end_central)
+            )
+            # plotting flatlined channels
+            plot_flatline_mask(
+                flatlined, cs, output_name=f'{args.tmp_dir}/plot0_flatline.pdf',
+                times = (start_central, end_central), grafana=False
+            )
+        except Exception as e:
+            placeholder_pdf(args.output_dir, f'{args.file_syntax}{args.start_run}_light_dqm_flatline.png',
+                            "Failed to plot grafana flatline plot")
+            placeholder_pdf(args.tmp_dir, 'plot0_flatline.pdf', None)
+            traceback.print_exc()
+
+        # baseline fluctuations
+        try:
+            # checking for baseline fluctuations
+            baselined = check_baseline(
+                prev_baselines, (bline_c, bline_l, bline_u), units=args.units,
+                threshold = 500
+            )
+            # plotting baseline fluctuations for grafana
+            plot_baseline_mask(
+                baselined, cs, output_name=f'{args.output_dir}/{args.file_syntax}{args.start_run}_light_dqm_baseline.png',
+                times = (start_central, end_central)
+            )
+            # plotting baseline fluctuations
+            plot_baseline_mask(
+                baselined, cs, output_name=f'{args.tmp_dir}/plot0_baseline.pdf',
+                times = (start_central, end_central), grafana=False
+            )
+
+        except Exception as e:
+            placeholder_pdf(args.output_dir, f'{args.file_syntax}{args.start_run}_light_dqm_baseline.png',
+                            "Failed to plot grafana baseline plot")
+            placeholder_pdf(args.tmp_dir, 'plot0_baseline.pdf',
+                            "Failed to plot baseline fluctuations: plot0_baseline.pdf")
+            traceback.print_exc()
+
 
         # search for files in the output directory and merge pdfs
         merger = PdfMerger()
@@ -1735,16 +2120,19 @@ def main():
         args_list.append(f"Data end timestamp   (CT): {end_central}")
         args_list.append(f"DQM runtime          (CT): {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time() - 21600))}")
         args_list.append("")
+
         # Add all relevant arguments
         for arg_name in [
-            "nfiles", "start_file", "ncomp", "output_dir", "units", "ptps16bit", "max_evts", "powspec_nevts"
+            "nfiles", "start_run", "ncomp", "output_dir",
+            "units", "ptps16bit", "max_evts", "powspec_nevts"
         ]:
             arg_value = getattr(args, arg_name)
             args_list.append(f"--{arg_name} {arg_value}")
+
         # remove None
         args_list = [line for line in args_list if line is not None]
-
         args_pdf = os.path.join(args.output_dir, f"args_list_{i_file}.pdf")
+
         with PdfPages(args_pdf) as pdf:
             fig, ax = plt.subplots(figsize=(8.5, 6))
             ax.axis('off')
@@ -1757,36 +2145,42 @@ def main():
         merger_grafana.append(args_pdf)
         os.remove(args_pdf)
 
-        # Append all plot PDFs to the merger
-        plotnames = [f'plot_{i}.pdf' for i in range(0, 16)]
-        for plotname in plotnames:
-            plot_path = f"{args.output_dir}{plotname}"
+
+        # Append all DQM plot PDFs to the merger
+        plot_files = sorted(glob.glob(os.path.join(args.tmp_dir, "*plot*.pdf")))
+        for plot_path in plot_files:
             if os.path.exists(plot_path):
                 merger.append(plot_path)
                 os.remove(plot_path)
 
-        merged_pdf_path = f"{args.output_dir}merged_plots_{i_file}.pdf"
+        merged_pdf_path = os.path.join(args.output_dir, f"{args.file_syntax}{args.start_run}_light_dqm_main.pdf")
         merger.write(merged_pdf_path)
         merger.close()
-        print(f"Merged plots saved to: {merged_pdf_path}")
 
-
-        # Append all Grafana plot PDFs to the merger
-        grafana_plotnames = [f'grafana_plot_{i}.pdf' for i in range(0, 2)]
-        for grafana_plotname in grafana_plotnames:
-            grafana_plot_path = f"{args.output_dir}{grafana_plotname}"
-            if os.path.exists(grafana_plot_path):
-                merger_grafana.append(grafana_plot_path)
-                os.remove(grafana_plot_path)
-        merged_grafana_pdf_path = f"{args.output_dir}merged_grafana_plots_{i_file}.pdf"
-        merger_grafana.write(merged_grafana_pdf_path)
-        merger_grafana.close()
-        print(f"Merged Grafana plots saved to: {merged_grafana_pdf_path}")
+        #TO-DO: change pngs to pdfs if you want this option
+        # if args.merge_grafana_plots:
+            # # Append all Grafana plot PDFs to the merger
+            # grafana_plotnames = sorted(
+            #     glob.glob(os.path.join(args.output_dir_dir, "*light_dqm_baseline.pdf"))
+            #     + glob.glob(os.path.join(args.output_dir_dir, "*light_dqm_flatline.pdf"))
+            # )
+            # for grafana_plotname in grafana_plotnames:
+            #     grafana_plot_path = f"{args.output_dir}{grafana_plotname}"
+            #     if os.path.exists(grafana_plot_path):
+            #         merger_grafana.append(grafana_plot_path)
+            #         os.remove(grafana_plot_path)
+            # merged_grafana_pdf_path = f"{args.output_dir}merged_grafana_plots_{args.start_run}.pdf"
+            # merger_grafana.write(merged_grafana_pdf_path)
+            # merger_grafana.close()
+            # print(f"Merged Grafana plots saved to: {merged_grafana_pdf_path}")
 
         # timing for file processing
         print(f"Processing completed for file: {filename}")
         print(f"Time taken for file {i_file}: {time.time() - file_time:.2f} seconds")
         file_time = time.time()
+
+    if not proc_files:
+        raise ValueError("None of the files were found")
 
     footer()
     print(f"Time taken all files: {time.time() - start_time:.2f} seconds")

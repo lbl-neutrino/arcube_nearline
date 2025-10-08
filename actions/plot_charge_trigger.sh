@@ -4,7 +4,7 @@ stage=plot_charge_trigger
 
 source $(dirname $BASH_SOURCE)/../lib/init.inc.sh
 
-inbase=$data_root/nearline/packet
+inbase=$data_root/$nearline_name/packet
 
 inpath=$1; shift
 

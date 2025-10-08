@@ -4,7 +4,7 @@ stage=flowed_light
 
 source $(dirname $BASH_SOURCE)/../lib/init.inc.sh
 
-inbase=$data_root/LRS
+inbase=$data_root/LRS_run2
 
 inpath=$1; shift
 
@@ -29,7 +29,7 @@ fi
 
 cd $ROOT_OF_ARCUBE_NEARLINE/_install/ndlar_flow
 
-workflow='yamls/proto_nd_flow/workflows/light/light_event_building_mpd.yaml'
+workflow='yamls/proto_nd_flow/workflows/light/light_event_building_mpd_Run2.yaml'
 
 rm -f "$flowpath"
 

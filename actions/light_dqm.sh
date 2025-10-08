@@ -4,26 +4,37 @@ stage=light_dqm
 
 source $(dirname $BASH_SOURCE)/../lib/init.inc.sh
 
-inbase=/global/cfs/cdirs/dune/www/data/2x2/nearline/flowed_light
+inbase=$nearline_root/flowed_light
 
+# For example,
 inpath=$1; shift
+indir=$(dirname "$inpath")
+reldir=$(echo "$indir" | sed "s|^$inbase/||")
+
+# Remove the extension and the final numbers. The final numbers are either the
+# run number (123 if the filename is like "mpd_run_foo_rctl_123.FLOW.hdf5") or
+# the subrun number (789 if the filename is like
+# "mpd_run_bar_rctl_456_p789.FLOW.hdf5"). We end up with a file_syntax of either
+# "mpd_run_foo_rctl_" or "mpd_run_bar_rctl_456_p"
+file_syntax=$(basename "$inpath" .FLOW.hdf5 | sed 's/[0-9]\+$//')
+
+# Extract the same final numbers we stripped out above (welcome to regex hell)
+start_run=$(basename "$inpath" .FLOW.hdf5 | sed -n 's/.*[^0-9]\([0-9]\+\)$/\1/p')
 
 get_outpath() {
     outbase=$1
-    ext=$2
-
-    indir=$(dirname "$inpath")
-    reldir=$(echo "$indir" | sed "s|^$inbase/||")
-    outname=$(basename "$inpath" .hdf5).light_dqm.$ext
+    tag=$2
+    ext=$3
+    outname=$(basename "$inpath" .FLOW.hdf5)_light_dqm_${tag}.$ext
     mkdir -p "$outbase/$reldir"
     realpath "$outbase/$reldir/$outname"
 }
 
-foas=$(dirname "${BASH_SOURCE[0]}")/light_dqm/v3_FOAS-2.json
+channel_status=$(dirname "${BASH_SOURCE[0]}")/light_dqm/channel_status.csv
 
-plotpath1=$(get_outpath "$plot_outbase" main.pdf)
-plotpath2=$(get_outpath "$plot_outbase" baseline.png)
-plotpath3=$(get_outpath "$plot_outbase" dead_chan.png)
+plotpath1=$(get_outpath "$plot_outbase" main pdf)
+plotpath2=$(get_outpath "$plot_outbase" baseline png)
+plotpath3=$(get_outpath "$plot_outbase" flatline png)
 
 logpath=$(get_outpath "$log_outbase" log)
 
@@ -34,12 +45,16 @@ if [[ "$(stat -c %s "$inpath")" -gt 50000000000 ]]; then
     exit 1
 fi
 
-python3 light_dqm.py --input_file "$inpath" \
-    --dead_json "$foas" \
-    --output_file_1 "$plotpath1" \
-    --output_file_2 "$plotpath2" \
-    --output_file_3 "$plotpath3" \
-    2>&1 | tee "$logpath"
+# light_dqm.py expects the trailing slash on input_path
+python3 light_dqm.py --input_path "$inbase/$reldir/" \
+                     --output_dir "$plot_outbase" \
+                     --tmp_dir "$plot_outbase/tmp" \
+                     --file_syntax "$file_syntax" \
+                     --output_dir "$(dirname "$plotpath1")" \
+                     --channel_status_file "$channel_status"\
+                     --start_run $start_run \
+                     2>&1 | tee "$logpath"
+
 
 latest_outbase="$plot_outbase/latest"
 latest_path1="$latest_outbase/latest_main.pdf"
