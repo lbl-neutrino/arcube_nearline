@@ -802,6 +802,7 @@ def plot_clipped_fraction(prev_clipped_evts, clipped_evts, title=None,
         #ax.set_ylim(0, 1)  # Set y-axis limit to 0-10%
         ax.set_title(f'ADC {i_adc} - '+ title if title else 'ADC {i_adc}')
         ax.set_ylabel(ylabel)
+        #ax.set_ylim(0, 0.2)  # Set y-axis limit to 0-20%
         ax.grid(True, which='both', linestyle='--', linewidth=0.5)
         # save clipped numerator and denominator for later use
         clip_passed[i_adc, :] = clipped_counts
@@ -1048,6 +1049,10 @@ def plot_clipped_ch_fraction(prev_clipped_evts, clipped_evts, max_vals, ths,
         clip_passed[i_adc, :] = clipped_counts
         total_evts[i_adc, :] = total_events
 
+        # get y-lim from data (excluding values with 0 total events)
+        ymax = np.max(clipped_pct[total_events > 0]) * 1.1
+        ax.set_ylim(0, ymax)
+
     plt.tight_layout()
     plt.show()
     # save as pdf
@@ -1124,6 +1129,11 @@ def plot_neg_tpc_fraction(prev_neg_evts, neg_evts, max_vals, ths,
             alpha=alphas[idx]
         )
 
+    # get y-lim from data (excluding values with 0 total events)
+    mask = total_events > 0
+    ymax = np.max(neg_pct[mask] + err_up[mask]) * 1.1
+    ax.set_ylim(0, ymax)
+
     # formatting
     #x.set_ylim(0,100)
     ax.set_title(f'ADC {i_adc} - ' + (title if title else f'ADC {i_adc}'))
@@ -1136,6 +1146,7 @@ def plot_neg_tpc_fraction(prev_neg_evts, neg_evts, max_vals, ths,
 
   plt.tight_layout()
   plt.show()
+
   # save as pdf
   output_pdf = f"{args.output_dir}/{output_name}"
   with PdfPages(output_pdf) as pdf:
