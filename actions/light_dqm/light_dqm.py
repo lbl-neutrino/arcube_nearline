@@ -569,7 +569,7 @@ def plot_noises(prev_noises, noises, i_evt, mask_inactive=True,
                 for ch in channels_idx[mask]:
                     ax.errorbar(
                         ch, median[ch], yerr=[[lower[ch]], [upper[ch]]],
-                        fmt='.', color='b', markersize=3,
+                        fmt='.', color='b', markersize=5,
                         linewidth=0.5, capsize=5, capthick=1,
                         alpha=alphas[ch]
                     )
@@ -642,7 +642,7 @@ def plot_baselines(prev_baselines, baselines, i_evt, mask_inactive=True,
                 for ch in channels_idx[mask]:
                     ax.errorbar(
                         ch, median[ch], yerr=[[lower[ch]], [upper[ch]]],
-                        fmt='.', color='b', markersize=3,
+                        fmt='.', color='b', markersize=5,
                         linewidth=0.5, capsize=5, capthick=1,
                         alpha=alphas[ch]
                     )
@@ -837,6 +837,7 @@ def plot_clipped_fraction(prev_clipped_evts, clipped_evts, title=None,
         # Clopper-Pearson interval (binomial proportion confidence interval)
         clipped_pct, err_low, err_up = clopper_pearson(clipped_counts, total_events)
         ylabel = 'Clipped (% total)'
+        ymax = 0
 
         # define alpha 0.25 for cs!=0
         alphas = np.ones_like(clipped_pct)
@@ -867,20 +868,25 @@ def plot_clipped_fraction(prev_clipped_evts, clipped_evts, title=None,
             ax.errorbar(
                 idx, clipped_pct[idx],
                 yerr=[[yerr_lower], [yerr_upper]],
-                fmt='.', ecolor=color, markersize=3,
+                fmt='.', ecolor=color, markersize=5,
                 capsize=4, linewidth=1, color=color,
                 alpha=alphas[idx]
             )
+            if clipped_pct[idx] + yerr_upper < 100.0:
+                if (ymax < clipped_pct[idx] + yerr_upper):
+                    ymax = clipped_pct[idx] + yerr_upper
+            if prev_clipped_evts is not None and (c + u < 100.0):
+                if (ymax < c + u):
+                    ymax = c + u
 
-        # get y-lim from data (excluding values with 0 total events)
-        ymax = np.max((clipped_pct+err_up)[total_events > 0]) * 1.1
-        ymax = 1.0 if ymax > 1.0 else ymax
-        ax.set_ylim(0, ymax)
+        # get y-lim from data (excluding values with 0 clipped events)
+        ax.set_ylim(0, ymax+5 if ymax < 95 else 100)
 
         # formatting
-        ax.set_title(f'ADC {i_adc} - '+ title if title else 'ADC {i_adc}')
+        ax.set_title(f'ADC {i_adc} - {title}' if title else f'ADC {i_adc}')
         ax.set_ylabel(ylabel)
         ax.grid(True, which='both', linestyle='--', linewidth=0.5)
+
         # save clipped numerator and denominator for later use
         clip_passed[i_adc, :] = clipped_counts
         total_evts[i_adc, :] = total_events
@@ -934,11 +940,13 @@ def plot_clipped_tpc_fraction(prev_clipped_evts, clipped_evts, max_vals, ths,
         # Clopper-Pearson interval (binomial proportion confidence interval)
         clipped_pct, err_low, err_up = clopper_pearson(clipped_counts, total_events)
         ylabel = 'Clipped (% TPC)'
+        ymax = 0
 
         # define alpha 0.25 for cs!=0
         alphas = np.ones_like(cs[i_adc, :])
         bad_mask = cs[i_adc, :] != 0
         alphas[bad_mask] = 0.25
+
         # Plot each point individually to allow per-point alpha
         for idx in channels:
             # previous clipped events
@@ -963,15 +971,19 @@ def plot_clipped_tpc_fraction(prev_clipped_evts, clipped_evts, max_vals, ths,
             ax.errorbar(
                 idx, clipped_pct[idx],
                 yerr=[[yerr_lower], [yerr_upper]],
-                fmt='.', ecolor=color, markersize=3,
+                fmt='.', ecolor=color, markersize=5,
                 capsize=4, linewidth=1, color=color,
                 alpha=alphas[idx]
             )
+            if clipped_pct[idx] + yerr_upper < 100.0:
+                if (ymax < clipped_pct[idx] + yerr_upper):
+                    ymax = clipped_pct[idx] + yerr_upper
+            if prev_clipped_evts is not None and (c + u < 100.0):
+                if (ymax < c + u):
+                    ymax = c + u
 
-        # get y-lim from data (excluding values with 0 total events)
-        ymax = np.max((clipped_pct+err_up)[total_events > 0]) * 1.1
-        ymax = 1.0 if ymax > 1.0 else ymax
-        ax.set_ylim(0, ymax)
+        # get y-lim from data (excluding values with 0 clipped events)
+        ax.set_ylim(0, ymax+5 if ymax < 95 else 100)
 
         # formatting
         ax.set_title(f'ADC {i_adc} - {title}' if title else f'ADC {i_adc}')
@@ -1020,11 +1032,13 @@ def plot_clipped_epcb_fraction(prev_clipped_evts, clipped_evts, max_vals, ths,
         # Clopper-Pearson interval (binomial proportion confidence interval)
         clipped_pct, err_low, err_up = clopper_pearson(clipped_counts, total_events)
         ylabel = 'Clipped (% EPCB)'
+        ymax = 0
 
         # define alpha 0.25 for cs!=0
         alphas = np.ones_like(cs[i_adc, :])
         bad_mask = cs[i_adc, :] != 0
         alphas[bad_mask] = 0.25
+
         # Plot each point individually to allow per-point alpha
         for idx in channels:
             # previous clipped events
@@ -1049,18 +1063,22 @@ def plot_clipped_epcb_fraction(prev_clipped_evts, clipped_evts, max_vals, ths,
             ax.errorbar(
                 idx, clipped_pct[idx],
                 yerr=[[yerr_lower], [yerr_upper]],
-                fmt='.', ecolor=color, markersize=3,
+                fmt='.', ecolor=color, markersize=5,
                 capsize=4, linewidth=1, color=color,
                 alpha=alphas[idx]
             )
+            if clipped_pct[idx] + yerr_upper < 100.0:
+                if (ymax < clipped_pct[idx] + yerr_upper):
+                    ymax = clipped_pct[idx] + yerr_upper
+            if prev_clipped_evts is not None and (c + u < 100.0):
+                if (ymax < c + u):
+                    ymax = c + u
 
-        # get y-lim from data (excluding values with 0 total events)
-        ymax = np.max((clipped_pct+err_up)[total_events > 0]) * 1.1
-        ymax = 1.0 if ymax > 1.0 else ymax
-        ax.set_ylim(0, ymax)
+        # get y-lim from data (excluding values with 0 clipped events)
+        ax.set_ylim(0, ymax+5 if ymax < 95 else 100)
 
         # formatting
-        ax.set_title(f'ADC {i_adc}' + (f' - {title}' if title else 'ADC {i_adc}'))
+        ax.set_title(f'ADC {i_adc} - {title}' if title else f'ADC {i_adc}')
         ax.set_ylabel(ylabel)
         ax.grid(True, which='both', linestyle='--', linewidth=0.5)
 
@@ -1100,11 +1118,13 @@ def plot_clipped_ch_fraction(prev_clipped_evts, clipped_evts, max_vals, ths,
         # Clopper-Pearson interval (binomial proportion confidence interval)
         clipped_pct, err_low, err_up = clopper_pearson(clipped_counts, total_events)
         ylabel = 'Clipped (%)'
+        ymax = 0
 
         # define alpha 0.25 for cs!=0
         alphas = np.ones_like(cs[i_adc, :])
         bad_mask = cs[i_adc, :] != 0
         alphas[bad_mask] = 0.25
+
         # Plot each point individually to allow per-point alpha
         for idx in channels:
             # previous clipped events
@@ -1129,18 +1149,22 @@ def plot_clipped_ch_fraction(prev_clipped_evts, clipped_evts, max_vals, ths,
             ax.errorbar(
                 idx, clipped_pct[idx],
                 yerr=[[yerr_lower], [yerr_upper]],
-                fmt='.', ecolor=color, markersize=3,
+                fmt='.', ecolor=color, markersize=5,
                 capsize=4, linewidth=1, color=color,
                 alpha=alphas[idx]
             )
+            if clipped_pct[idx] + yerr_upper < 100.0:
+                if (ymax < clipped_pct[idx] + yerr_upper):
+                    ymax = clipped_pct[idx] + yerr_upper
+            if prev_clipped_evts is not None and (c + u < 100.0):
+                if (ymax < c + u):
+                    ymax = c + u
 
-        # get y-lim from data (excluding values with 0 total events)
-        ymax = np.max((clipped_pct+err_up)[total_events > 0]) * 1.1
-        ymax = 1.0 if ymax > 1.0 else ymax
-        ax.set_ylim(0, ymax)
+        # get y-lim from data (excluding values with 0 clipped events)
+        ax.set_ylim(0, ymax+5 if ymax < 95 else 100)
 
         # formatting
-        ax.set_title(f'ADC {i_adc} - ' + (title if title else f'ADC {i_adc}'))
+        ax.set_title(f'ADC {i_adc} - {title}' if title else f'ADC {i_adc}')
         ax.set_ylabel(ylabel)
         ax.grid(True, which='both', linestyle='--', linewidth=0.5)
 
@@ -1193,11 +1217,13 @@ def plot_neg_tpc_fraction(prev_neg_evts, neg_evts, max_vals, ths,
     # Clopper-Pearson interval (binomial proportion confidence interval)
     neg_pct, err_low, err_up = clopper_pearson(neg_counts, total_events)
     ylabel = '-ve baseline (% TPC)'
+    ymax = 0
 
     # define alpha 0.25 for cs!=0
     alphas = np.ones_like(cs[i_adc, :])
     bad_mask = cs[i_adc, :] != 0
     alphas[bad_mask] = 0.25
+
     # Plot each point individually to allow per-point alpha
     for idx in channels:
         # previous negative events
@@ -1223,18 +1249,22 @@ def plot_neg_tpc_fraction(prev_neg_evts, neg_evts, max_vals, ths,
         ax.errorbar(
             idx, neg_pct[idx],
             yerr=[[yerr_lower], [yerr_upper]],
-            fmt='.', ecolor=color, markersize=3,
+            fmt='.', ecolor=color, markersize=5,
             capsize=4, linewidth=1, color=color,
             alpha=alphas[idx]
         )
+        if neg_pct[idx] + yerr_upper < 100.0:
+            if (ymax < neg_pct[idx] + yerr_upper):
+                ymax = neg_pct[idx] + yerr_upper
+        if prev_neg_evts is not None and (c + u < 100.0):
+            if (ymax < c + u):
+                ymax = c + u
 
-    # get y-lim from data (excluding values with 0 total events)
-    ymax = np.max((neg_pct+err_up)[total_events > 0]) * 1.1
-    ymax = 1.0 if ymax > 1.0 else ymax
-    ax.set_ylim(0, ymax)
+    # get y-lim from data (excluding values with 0 clipped events)
+    ax.set_ylim(0, ymax+5 if ymax < 95 else 100)
 
     # formatting
-    ax.set_title(f'ADC {i_adc} - ' + (title if title else f'ADC {i_adc} negative baselines'))
+    ax.set_title(f'ADC {i_adc} - {title}' if title else f'ADC {i_adc}')
     ax.set_ylabel(ylabel)
     ax.grid(True, which='both', linestyle='--', linewidth=0.5)
 
@@ -1280,11 +1310,13 @@ def plot_neg_epcb_fraction(prev_neg_evts, neg_evts, max_vals, ths,
     # Clopper-Pearson interval (binomial proportion confidence interval)
     neg_pct, err_low, err_up = clopper_pearson(neg_counts, total_events)
     ylabel = '-ve baseline (% EPCB)'
+    ymax = 0
 
     # define alpha 0.25 for cs!=0
     alphas = np.ones_like(cs[i_adc, :])
     bad_mask = cs[i_adc, :] != 0
     alphas[bad_mask] = 0.25
+
     # Plot each point individually to allow per-point alpha
     for idx in channels:
         # previous negative events
@@ -1310,18 +1342,22 @@ def plot_neg_epcb_fraction(prev_neg_evts, neg_evts, max_vals, ths,
         ax.errorbar(
             idx, neg_pct[idx],
             yerr=[[yerr_lower], [yerr_upper]],
-            fmt='.', ecolor=color, markersize=3,
+            fmt='.', ecolor=color, markersize=5,
             capsize=4, linewidth=1, color=color,
             alpha=alphas[idx]
         )
+        if neg_pct[idx] + yerr_upper < 100.0:
+            if (ymax < neg_pct[idx] + yerr_upper):
+                ymax = neg_pct[idx] + yerr_upper
+        if prev_neg_evts is not None and (c + u < 100.0):
+            if (ymax < c + u):
+                ymax = c + u
 
-    # get y-lim from data (excluding values with 0 total events)
-    ymax = np.max((neg_pct+err_up)[total_events > 0]) * 1.1
-    ymax = 1.0 if ymax > 1.0 else ymax
-    ax.set_ylim(0, ymax)
+    # get y-lim from data (excluding values with 0 clipped events)
+    ax.set_ylim(0, ymax+5 if ymax < 95 else 100)
 
     # formatting
-    ax.set_title(f'ADC {i_adc} - ' + (title if title else f'ADC {i_adc} negative baselines'))
+    ax.set_title(f'ADC {i_adc} - {title}' if title else f'ADC {i_adc}')
     ax.set_ylabel(ylabel)
     ax.grid(True, which='both', linestyle='--', linewidth=0.5)
 
@@ -1357,6 +1393,7 @@ def save_as_json(file_index, data_c, data_l, data_u, output_dir, filename):
     with open(file_path, mode) as f:
         json.dump(data, f)
         f.write('\n')
+    print(f"Data for file_index {file_index} ({filename}) saved to {output_dir}")
 
 def read_from_json(file_indices, output_dir, filename):
     """
@@ -1413,10 +1450,11 @@ def save_spectra_as_json(file_index, spectra_roi, output_dir, filename):
         'spectra_roi': spectra_roi.tolist()
     }
     # Use append mode if file exists, else write mode
-    mode = 'a' if os.path.exists(output_dir + filename) else 'w'
-    with open(output_dir+filename, mode) as f:
+    mode = 'a' if os.path.exists(output_dir + '/' + filename) else 'w'
+    with open(output_dir + '/' + filename, mode) as f:
         json.dump(data, f)
         f.write('\n')
+    print(f"Data for file_index {file_index} ({filename}) saved to {output_dir}")
 
 def save_eff_as_json(file_index, passed, totals, output_dir, filename):
     """
@@ -1429,11 +1467,12 @@ def save_eff_as_json(file_index, passed, totals, output_dir, filename):
         'totals': totals.tolist()
     }
     # Use append mode if file exists, else write mode
-    mode = 'a' if os.path.exists(output_dir + filename) else 'w'
-    with open(output_dir+filename, mode) as f:
+    mode = 'a' if os.path.exists(output_dir + '/' + filename) else 'w'
+    with open(output_dir + '/' + filename, mode) as f:
         json.dump(data, f)
         f.write('\n')
         f.close()
+    print(f"Data for file_index {file_index} ({filename}) saved to {output_dir}")
 
 
 def read_eff_from_json(file_indices, output_dir, filename):
@@ -1510,7 +1549,7 @@ def main():
         print(f"Invalid units: {args.units}. Must be 'ADC16', 'ADC14', or 'V'.")
         sys.exit(1)
 
-    if args.powspec_nevts < args.max_evts:
+    if args.powspec_nevts > args.max_evts:
         print("Number of events for the power spectrum can't be greater than the total events")
         # set powerspec_nevts to max_evts
         args.powspec_nevts = args.max_evts
@@ -1538,18 +1577,22 @@ def main():
     if n_available_files == 0:
         print("No files found. Exiting.")
         sys.exit(1)
-    if args.start_file >= n_available_files:
-        print(f"Start file index {args.start_file} is out of range. There are only {n_available_files} files available. Exiting.")
+    if args.start_run >= n_available_files:
+        print(f"Start file index {args.start_run} is out of range. There are only {n_available_files} files available. Exiting.")
         sys.exit(1)
-    if args.start_file + args.nfiles > n_available_files:
-        args.nfiles = n_available_files - args.start_file
+    if args.start_run + args.nfiles > n_available_files:
+        args.nfiles = n_available_files - args.start_run
         print(f"Adjusting number of files to process to {args.nfiles} to avoid going out of range.")
 
     file_time = start_time
+    proc_files = 0
+
     for i_file in range(args.start_run, args.start_run + args.nfiles, 1):
 
         # Construct the filename based on the input path and file index
         filename = f'{args.input_path}{all_files[i_file]}'
+        # just the file name, no path and cutting off .FLOW.hdf5
+        short_filename = all_files[i_file][:-10]
 
         # Skip if file does not exist
         if not os.path.exists(filename):
@@ -1649,7 +1692,7 @@ def main():
                           args.units, i_evt=evt, output_name='plot1_sumwvfm.pdf')
             print(f"Sum waveform plotted for file: {filename}")
         except Exception as e:
-            placeholder_pdf(args.output_dir, 'plot1_sumwvfm.pdf',
+            placeholder_pdf(args.tmp_dir, 'plot1_sumwvfm.pdf',
                             "Failed to plot summed waveforms: plot1_sumwvfm.pdf")
             traceback.print_exc()
 
@@ -1692,7 +1735,7 @@ def main():
             print(f"Noise spectra calculated for file: {filename}")
 
         except Exception as e:
-            placeholder_pdf(args.output_dir, 'plot5_powspec.pdf',
+            placeholder_pdf(args.tmp_dir, 'plot5_powspec.pdf',
                             "Failed to plot noise spectra: plot5_powspec.pdf")
             traceback.print_exc()
 
@@ -1717,7 +1760,7 @@ def main():
             print(f"Noises plotted for file: {filename}")
 
         except Exception as e:
-            placeholder_pdf(args.output_dir, 'plot4_noises.pdf',
+            placeholder_pdf(args.tmp_dir, 'plot4_noises.pdf',
                             "Failed to plot noises: plot4_noises.pdf")
             traceback.print_exc()
 
@@ -1739,7 +1782,7 @@ def main():
             print(f"Baselines plotted for file: {filename}")
 
         except Exception as e:
-            placeholder_pdf(args.output_dir, 'plot2_baselines.pdf',
+            placeholder_pdf(args.tmp_dir, 'plot2_baselines.pdf',
                             "Failed to plot baselines: plot2_baselines.pdf")
             traceback.print_exc()
 
@@ -1832,9 +1875,13 @@ def main():
                     print(f"Clipped channel fraction plotted for file: {filename}")
 
             except Exception as e:
-                placeholder_pdf(args.output_dir, 'plot6_clipped_beam_epcb.pdf',
-                                "Failed to plot clipped fraction for beam events: plot6_clipped_beam_ch.pdf"
+                placeholder_pdf(args.tmp_dir, 'plot6_clipped_beam_epcb.pdf',
+                                "Failed to plot clipped fraction for beam events: plot6_clipped_beam_epcb.pdf"
                 )
+                if args.plot_all_clipped:
+                    placeholder_pdf(args.tmp_dir, 'plot6_clipped_beam_ch.pdf',
+                                    "Failed to plot clipped fraction for beam events: plot6_clipped_beam_ch.pdf"
+                    )
                 traceback.print_exc()
 
 
@@ -1917,7 +1964,7 @@ def main():
                     clip_pass, clip_tot = plot_clipped_ch_fraction(
                         prev_strig_clipped, strig_clipped, strig_max_values, ptps,
                         "Self-trigger Trigger  (% of events with clipped waveforms, normalized per channel)",
-                        output_name='plot_clipped8_ch_self.pdf'
+                        output_name='plot8_clipped_ch_self.pdf'
                     )
                     # write channel clipped fraction
                     if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,
@@ -1925,8 +1972,11 @@ def main():
                     print(f"Clipped channel fraction plotted for file: {filename}")
 
             except Exception as e:
-                placeholder_pdf(args.output_dir, 'plot_clipped6_self_ch.pdf',
-                                "Failed to plot clipped fraction for self-trigger events: plot_clipped6_self_ch.pdf")
+                placeholder_pdf(args.tmp_dir, 'plot8_clipped_self_epcb.pdf',
+                                "Failed to plot clipped fraction for self-trigger events: plot8_clipped_self_epcb.pdf")
+                if args.plot_all_clipped:
+                    placeholder_pdf(args.tmp_dir, 'plot_clipped6_self_ch.pdf',
+                                    "Failed to plot clipped fraction for self-trigger events: plot_clipped6_self_ch.pdf")
                 traceback.print_exc()
 
 
@@ -1974,10 +2024,15 @@ def main():
                     if args.write_json_blobs: save_eff_as_json(i_file, negs_pass, negs_tot,
                                     args.output_dir, 'negatives_epcb_beam.json')
                     print(f"Negative spike EPCB fraction plotted for file: {filename}")
+
             except Exception as e:
-                placeholder_pdf(args.output_dir, 'plot6_negatives_beam_tpc.pdf',
+                placeholder_pdf(args.tmp_dir, 'plot6_negatives_beam_tpc.pdf',
                                 "Failed to plot -ve spike fraction for beam events: plot6_negatives_beam_tpc.pdf"
                 )
+                if args.plot_all_negatives:
+                    placeholder_pdf(args.tmp_dir, 'plot6_negatives_beam_epcb.pdf',
+                                    "Failed to plot -ve spike fraction for beam events: plot6_negatives_beam_epcb.pdf"
+                    )
                 traceback.print_exc()
 
 
@@ -2024,9 +2079,13 @@ def main():
                     print(f"Negative spike EPCB fraction plotted for file: {filename}")
 
             except Exception as e:
-                placeholder_pdf(args.output_dir, 'plot6_negatives_self_tpc.pdf',
-                                "Failed to plot -ve spike fraction for self-trigger events: plot6_negatives_self_epcb.pdf"
+                placeholder_pdf(args.tmp_dir, 'plot6_negatives_self_tpc.pdf',
+                                "Failed to plot -ve spike fraction for self-trigger events: plot6_negatives_self_tpc.pdf"
                 )
+                if args.plot_all_negatives:
+                    placeholder_pdf(args.tmp_dir, 'plot6_negatives_self_epcb.pdf',
+                                    "Failed to plot -ve spike fraction for self-trigger events: plot6_negatives_self_epcb.pdf"
+                    )
                 traceback.print_exc()
 
 
@@ -2040,7 +2099,7 @@ def main():
             )
             # plotting flatlined channels for grafana
             plot_flatline_mask(
-                flatlined, cs, output_name=f'{args.output_dir}/{args.file_syntax}{args.start_run}_light_dqm_flatline.png',
+                flatlined, cs, output_name=f'{args.output_dir}/{short_filename}_light_dqm_flatline.png',
                 times = (start_central, end_central)
             )
             # plotting flatlined channels
@@ -2049,9 +2108,9 @@ def main():
                 times = (start_central, end_central), grafana=False
             )
         except Exception as e:
-            placeholder_pdf(args.output_dir, f'{args.file_syntax}{args.start_run}_light_dqm_flatline.png',
-                            "Failed to plot grafana flatline plot")
-            placeholder_pdf(args.tmp_dir, 'plot0_flatline.pdf', None)
+            placeholder_pdf(args.output_dir, f'{short_filename}_light_dqm_flatline.png',
+                            "Failed to plot grafana flatline: ..light_dqm_flatline.png")
+            placeholder_pdf(args.tmp_dir, 'plot0_flatline.pdf', "Failed to plot flatlined channels: plot0_flatline.pdf")
             traceback.print_exc()
 
         # baseline fluctuations
@@ -2063,7 +2122,7 @@ def main():
             )
             # plotting baseline fluctuations for grafana
             plot_baseline_mask(
-                baselined, cs, output_name=f'{args.output_dir}/{args.file_syntax}{args.start_run}_light_dqm_baseline.png',
+                baselined, cs, output_name=f'{args.output_dir}/{short_filename}_light_dqm_baseline.png',
                 times = (start_central, end_central)
             )
             # plotting baseline fluctuations
@@ -2073,8 +2132,8 @@ def main():
             )
 
         except Exception as e:
-            placeholder_pdf(args.output_dir, f'{args.file_syntax}{args.start_run}_light_dqm_baseline.png',
-                            "Failed to plot grafana baseline plot")
+            placeholder_pdf(args.output_dir, f'{short_filename}_light_dqm_baseline.png',
+                            "Failed to plot grafana baseline fluctuations: ..light_dqm_baseline.png")
             placeholder_pdf(args.tmp_dir, 'plot0_baseline.pdf',
                             "Failed to plot baseline fluctuations: plot0_baseline.pdf")
             traceback.print_exc()
@@ -2140,6 +2199,7 @@ def main():
             ax.text(0.01, 0.99, text, va='top', ha='left', fontsize=12, family='monospace')
             pdf.savefig(fig)
             plt.close(fig)
+
         # Insert the args PDF at the top of the merged file
         merger.append(args_pdf)
         merger_grafana.append(args_pdf)
@@ -2153,7 +2213,7 @@ def main():
                 merger.append(plot_path)
                 os.remove(plot_path)
 
-        merged_pdf_path = os.path.join(args.output_dir, f"{args.file_syntax}{args.start_run}_light_dqm_main.pdf")
+        merged_pdf_path = os.path.join(args.output_dir, f"{short_filename}_light_dqm_main.pdf")
         merger.write(merged_pdf_path)
         merger.close()
 
