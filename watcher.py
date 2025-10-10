@@ -64,7 +64,7 @@ class Watcher:
     def snarf(self):
         for path in self.paths:
             # Expand any asterisks etc.
-            for actual_path in glob.glob(path):
+            for actual_path in glob.glob(str(path)):
                 for ext in self.exts:
                     for p in actual_path.rglob(f'*.{ext}'):
                         self.maybe_make_firework(p)
