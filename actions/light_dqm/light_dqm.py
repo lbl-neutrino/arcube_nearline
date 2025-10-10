@@ -360,9 +360,9 @@ def check_baseline(prev_baseline, current_baseline, units='ADC16', threshold=200
     min_allowed = np.zeros_like(curr_c)
     max_allowed = np.zeros_like(curr_c)
     min_allowed[...] = -30000
-    max_allowed[...] = -25000
+    max_allowed[...] = -26000
     # for index 6 (ADC 6), set min_allowed to 15000, max_allowed to 20000
-    min_allowed[6, :] = -24000
+    min_allowed[6, :] = -26000
     max_allowed[6, :] = -22000
     mask_range = (curr_c < min_allowed) | (curr_c > max_allowed)
     mask |= mask_range
