@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import argparse
+import glob
 from pathlib import Path
 import time
 from typing import Callable, Optional
@@ -62,9 +63,11 @@ class Watcher:
 
     def snarf(self):
         for path in self.paths:
-            for ext in self.exts:
-                for p in path.rglob(f'*.{ext}'):
-                    self.maybe_make_firework(p)
+            # Expand any asterisks etc.
+            for actual_path in glob.glob(str(path)):
+                for ext in self.exts:
+                    for p in Path(actual_path).rglob(f'*.{ext}'):
+                        self.maybe_make_firework(p)
 
     def watch_inotify(self):
         handler = EventHandler(self)
