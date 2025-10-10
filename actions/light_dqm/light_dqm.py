@@ -356,6 +356,18 @@ def check_baseline(prev_baseline, current_baseline, units='ADC16', threshold=200
     mask = np.zeros_like(curr_c, dtype=bool)
     status = np.zeros_like(curr_c, dtype=int)
 
+    # check against assumed range
+    min_allowed = np.zeros_like(curr_c)
+    max_allowed = np.zeros_like(curr_c)
+    min_allowed[...] = -30000
+    max_allowed[...] = -25000
+    # for index 6 (ADC 6), set min_allowed to 15000, max_allowed to 20000
+    min_allowed[6, :] = -24000
+    max_allowed[6, :] = -22000
+    mask_range = (curr_c < min_allowed) | (curr_c > max_allowed)
+    mask |= mask_range
+    status[mask_range] = -1
+
     # Current uncertainty too large
     curr_margin = np.maximum(curr_l, curr_u)
     mask_curr = curr_margin > thr
