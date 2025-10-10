@@ -75,10 +75,11 @@ def parse_args():
     parser.add_argument('--ncomp', type=int, default=-1, help='Number of previous files to compare')
     parser.add_argument('--powspec_nevts', type=int, default=500, help='Number of events to process per file for noise spectra')
     parser.add_argument('--max_evts', type=int, default=500, help='Maximum number of events to process for the whole file')
-    parser.add_argument('--write_json_blobs', type=bool, default=False, help='Saves all data to json blobs if true')
+    parser.add_argument('--write_json_blobs', type=bool, default=False, help='Write noise spectra blobs to json files')
     parser.add_argument('--merge_grafana_plots', type=bool, default=False, help='Merge baselines and flatlines grafana plots')
     parser.add_argument('--plot_all_clipped', type=bool, default=False, help='Plot all clipped waveform plots')
     parser.add_argument('--plot_all_negatives', type=bool, default=False, help='Plot all negative baseline plots')
+    parser.add_argument('--nsamples', type=int, default=1000, help='Number of samples in each waveform')
 
     return parser.parse_args()
 
@@ -91,7 +92,7 @@ ptps16bit = args.ptps16bit
 default_units = args.units
 
 SAMPLE_RATE = 0.016  # us per sample
-SAMPLES = 1000       # samples per waveform
+SAMPLES = args.nsamples # samples per waveform
 adc14_max = 8191
 adc14_16 = 2**2      # Conversion factor between 14 and 16 bit ADC
 
@@ -153,21 +154,43 @@ except Exception as e:
 
 # def numpy friendly clopper-pearson function
 def clopper_pearson(passed, total, interval=0.68):
+
+    # raise error if passed > total
+    if np.any(passed > total):
+        raise ValueError("Passed events cannot be greater than total events.")
+
     alpha = 1 - interval
-    lower = beta.ppf(alpha/2, passed, total - passed + 1)
-    upper = beta.ppf(1 - alpha/2, passed + 1, total - passed)
+    # Ensure arrays are numpy arrays
+    passed = np.asarray(passed)
+    total = np.asarray(total)
+    # Initialize lower and upper arrays
+    lower = np.zeros_like(passed, dtype=float)
+    upper = np.ones_like(passed, dtype=float)
+    # Mask for valid entries (total > 0)
+    valid = total > 0
+    # For valid entries, compute lower and upper bounds
+    lower[valid] = beta.ppf(alpha/2, passed[valid], total[valid] - passed[valid] + 1)
+    upper[valid] = beta.ppf(1 - alpha/2, passed[valid] + 1, total[valid] - passed[valid])
+    # Replace NaNs with 0 and 1
     lower = np.nan_to_num(lower, nan=0.0)
     upper = np.nan_to_num(upper, nan=1.0)
-    frac = np.zeros_like(passed, dtype=float)
+    # Fraction calculation
     with np.errstate(divide='ignore', invalid='ignore'):
-        frac = passed / total
+        frac = np.true_divide(passed, total)
         frac = np.nan_to_num(frac, nan=0.0)
-    # if total is zero, set frac to 0
+    # If total is zero, set frac to 0
     frac = np.where(total == 0, 0.0, frac)
-    # if frac is 0 and total is not zero, set lower and upper to 0 and 1 respectively
+    # If frac is 0 and total is not zero, set lower and upper to 0 and 1 respectively
     mask = (frac == 0) & (total != 0)
     lower = np.where(mask, 0.0, lower)
     upper = np.where(mask, 1.0, upper)
+
+    # error if err low < 0 or err high > 100
+    if np.any(frac < lower) or np.any(frac > upper):
+        raise ValueError("Calculated fraction is outside the confidence interval.")
+    if np.any(lower < 0) or np.any(upper > 1):
+        raise ValueError("Confidence interval bounds are out of range [0, 1].")
+
     # Calculate errors
     err_low = 100 * (frac - lower)
     err_up = 100 * (upper - frac)
@@ -510,7 +533,7 @@ def plot_sum_waveform(waveform, units='ADC16', i_evt=0, output_name='sum_wavefor
             axes[idx, tt_idx].set_ylabel(f'{units} counts')
             axes[idx, tt_idx].legend(loc='upper right', fontsize='small')
             axes[idx, tt_idx].grid(True)
-            axes[idx, tt_idx].set_xlim(0, 1000)
+            axes[idx, tt_idx].set_xlim(0, SAMPLES)
             axes[idx, tt_idx].set_ylim(-5000, 70000)
     axes[-1, 0].set_xlabel('Samples/ time (ticks)')
     axes[-1, 1].set_xlabel('Samples/ time (ticks)')
@@ -871,8 +894,8 @@ def plot_clipped_fraction(prev_clipped_evts, clipped_evts, title=None,
             color = 'b'
 
             # point + Clopper–Pearson error bars
-            yerr_lower = max(err_low[idx], 0)
-            yerr_upper = max(err_up[idx], 0)
+            yerr_lower = err_low[idx]
+            yerr_upper = err_up[idx]
             ax.errorbar(
                 idx, clipped_pct[idx],
                 yerr=[[yerr_lower], [yerr_upper]],
@@ -975,8 +998,8 @@ def plot_clipped_tpc_fraction(prev_clipped_evts, clipped_evts, max_vals, ths,
             color = 'b'
 
             # point + Clopper–Pearson error bars
-            yerr_lower = max(err_low[idx], 0)
-            yerr_upper = max(err_up[idx], 0)
+            yerr_lower = err_low[idx]
+            yerr_upper = err_up[idx]
             ax.errorbar(
                 idx, clipped_pct[idx],
                 yerr=[[yerr_lower], [yerr_upper]],
@@ -1027,10 +1050,8 @@ def plot_clipped_epcb_fraction(prev_clipped_evts, clipped_evts, max_vals, ths,
     for i_adc in range(n_adcs):
         ax = axes[i_adc]
 
-        # Calculate clipped counts for this ADC
-        clipped_counts = np.sum(clipped_evts[:,i_adc,:], axis=0)
-
         # get total events for this adc with max_values > ptps
+        clipped_events = np.zeros((64))
         total_events = np.zeros((64))
         for i_epcb in range(8):
             channel_indices = channels[i_epcb * 6: (i_epcb + 1) * 6]
@@ -1038,9 +1059,12 @@ def plot_clipped_epcb_fraction(prev_clipped_evts, clipped_evts, max_vals, ths,
             channel_mask[channel_indices] = True
             over_ptps = np.any(max_vals[:, i_adc, :]*channel_mask > ths[np.newaxis, i_adc, np.newaxis], axis=-1)
             total_events[channel_indices] = np.sum(over_ptps, axis=0)
+            clipped_events[channel_indices] = (
+                clipped_evts[:, i_adc, channel_mask][over_ptps].sum(axis=0)
+            )
 
         # Clopper-Pearson interval (binomial proportion confidence interval)
-        clipped_pct, err_low, err_up = clopper_pearson(clipped_counts, total_events)
+        clipped_pct, err_low, err_up = clopper_pearson(clipped_events, total_events)
         ylabel = 'Clipped (% EPCB)'
         ymax = 0
 
@@ -1068,8 +1092,8 @@ def plot_clipped_epcb_fraction(prev_clipped_evts, clipped_evts, max_vals, ths,
             color = 'b'
 
             # point + Clopper–Pearson error bars
-            yerr_lower = max(err_low[idx], 0)
-            yerr_upper = max(err_up[idx], 0)
+            yerr_lower = err_low[idx]
+            yerr_upper = err_up[idx]
             ax.errorbar(
                 idx, clipped_pct[idx],
                 yerr=[[yerr_lower], [yerr_upper]],
@@ -1094,7 +1118,7 @@ def plot_clipped_epcb_fraction(prev_clipped_evts, clipped_evts, max_vals, ths,
         ax.grid(True, which='both', linestyle='--', linewidth=0.5)
 
         # save clipped numerator and denominator for later use
-        clip_passed[i_adc, :] = clipped_counts
+        clip_passed[i_adc, :] = clipped_events
         total_evts[i_adc, :] = total_events
     axes[-1].set_xlabel('channel #')
     plt.tight_layout()
@@ -1155,8 +1179,8 @@ def plot_clipped_ch_fraction(prev_clipped_evts, clipped_evts, max_vals, ths,
             color = 'b'
 
             # point + Clopper–Pearson error bars
-            yerr_lower = max(err_low[idx], 0)
-            yerr_upper = max(err_up[idx], 0)
+            yerr_lower = err_low[idx]
+            yerr_upper = err_up[idx]
             ax.errorbar(
                 idx, clipped_pct[idx],
                 yerr=[[yerr_lower], [yerr_upper]],
@@ -1256,8 +1280,8 @@ def plot_neg_tpc_fraction(prev_neg_evts, neg_evts, max_vals, ths,
         color = 'b'
 
         # point + Clopper–Pearson error bars
-        yerr_lower = max(err_low[idx], 0)
-        yerr_upper = max(err_up[idx], 0)
+        yerr_lower = err_low[idx]
+        yerr_upper = err_up[idx]
         ax.errorbar(
             idx, neg_pct[idx],
             yerr=[[yerr_lower], [yerr_upper]],
@@ -1308,20 +1332,21 @@ def plot_neg_epcb_fraction(prev_neg_evts, neg_evts, max_vals, ths,
   for i_adc in range(n_adcs):
     ax = axes[i_adc]
 
-    # Calculate negative spike counts for this ADC
-    neg_counts = np.sum(neg_evts[:, i_adc, :], axis=0)
-
-    # get total events for this adc with max_values > ptps
+    # get total events for this epcb with max_values > ptps
+    neg_events = np.zeros((64))
     total_events = np.zeros((64))
     for i_epcb in range(8):
-      channel_indices = channels[i_epcb * 6: (i_epcb + 1) * 6]
-      channel_mask = np.zeros(64, dtype=bool)
-      channel_mask[channel_indices] = True
-      over_ptps = np.any(max_vals[:, i_adc, :]*channel_mask > ths[np.newaxis, i_adc, np.newaxis], axis=-1)
-      total_events[channel_indices] = np.sum(over_ptps, axis=0)
+        channel_indices = channels[i_epcb * 6: (i_epcb + 1) * 6]
+        channel_mask = np.zeros(64, dtype=bool)
+        channel_mask[channel_indices] = True
+        over_ptps = np.any(max_vals[:, i_adc, :]*channel_mask > ths[np.newaxis, i_adc, np.newaxis], axis=-1)
+        total_events[channel_indices] = np.sum(over_ptps, axis=0)
+        neg_events[channel_indices] = (
+            neg_evts[:, i_adc, channel_mask][over_ptps].sum(axis=0)
+        )
 
     # Clopper-Pearson interval (binomial proportion confidence interval)
-    neg_pct, err_low, err_up = clopper_pearson(neg_counts, total_events)
+    neg_pct, err_low, err_up = clopper_pearson(neg_events, total_events)
     ylabel = '-ve baseline (% EPCB)'
     ymax = 0
 
@@ -1350,8 +1375,8 @@ def plot_neg_epcb_fraction(prev_neg_evts, neg_evts, max_vals, ths,
         color = 'b'
 
         # point + Clopper–Pearson error bars
-        yerr_lower = max(err_low[idx], 0)
-        yerr_upper = max(err_up[idx], 0)
+        yerr_lower = err_low[idx]
+        yerr_upper = err_up[idx]
         ax.errorbar(
             idx, neg_pct[idx],
             yerr=[[yerr_lower], [yerr_upper]],
@@ -1376,7 +1401,7 @@ def plot_neg_epcb_fraction(prev_neg_evts, neg_evts, max_vals, ths,
     ax.grid(True, which='both', linestyle='--', linewidth=0.5)
 
     # save negative percentages and bounds
-    neg_passed[i_adc, :] = neg_counts
+    neg_passed[i_adc, :] = neg_events
     total_evts[i_adc, :] = total_events
   axes[-1].set_xlabel('channel #')
   plt.tight_layout()
@@ -1738,13 +1763,13 @@ def main():
                 rois_bins = np.array([np.argmin(np.abs(freq_bins*1e-6 - roi)) for roi in rois_mhz])
 
                 # loop over rois, and save spectrum bin to json for tracking rois over time
-                for i_roi in range(len(rois_bins)):
-                    roi_bin = rois_bins[i_roi]
-                    spur = noise_spectrum[:, :, roi_bin]
-                    # convert to string and replace '.' with '_' for naming convention
-                    roi_mhz = str(rois_mhz[i_roi]).replace('.', '_')
-                    # save to json
-                    if args.write_json_blobs:
+                if args.write_json_blobs:
+                    for i_roi in range(len(rois_bins)):
+                        roi_bin = rois_bins[i_roi]
+                        spur = noise_spectrum[:, :, roi_bin]
+                        # convert to string and replace '.' with '_' for naming convention
+                        roi_mhz = str(rois_mhz[i_roi]).replace('.', '_')
+                        # save to json
                         save_spectra_as_json(
                             i_file, spur, args.output_dir,
                             f'noise_spectra_roi_{roi_mhz}mhz.json'
