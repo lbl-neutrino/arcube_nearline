@@ -66,7 +66,7 @@ class Watcher:
             # Expand any asterisks etc.
             for actual_path in glob.glob(str(path)):
                 for ext in self.exts:
-                    for p in actual_path.rglob(f'*.{ext}'):
+                    for p in Path(actual_path).rglob(f'*.{ext}'):
                         self.maybe_make_firework(p)
 
     def watch_inotify(self):
