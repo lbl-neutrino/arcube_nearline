@@ -888,7 +888,8 @@ def plot_clipped_fraction(prev_clipped_evts, clipped_evts, title=None,
                     ymax = c + u
 
         # get y-lim from data (excluding values with 0 clipped events)
-        ax.set_ylim(0, ymax*1.1 if ymax < 90 else 100)
+        ax.set_ylim(0, ymax*1.1 if (ymax < 90 and ymax != 0)
+                        else (1 if ymax == 0 else 100))
 
         # formatting
         ax.set_title(f'ADC {i_adc} - {title}' if title else f'ADC {i_adc}')
@@ -991,7 +992,8 @@ def plot_clipped_tpc_fraction(prev_clipped_evts, clipped_evts, max_vals, ths,
                     ymax = c + u
 
         # get y-lim from data (excluding values with 0 clipped events)
-        ax.set_ylim(0, ymax*1.1 if ymax < 90 else 100)
+        ax.set_ylim(0, ymax*1.1 if (ymax < 90 and ymax != 0)
+                        else (1 if ymax == 0 else 100))
 
         # formatting
         ax.set_title(f'ADC {i_adc} - {title}' if title else f'ADC {i_adc}')
@@ -1083,7 +1085,8 @@ def plot_clipped_epcb_fraction(prev_clipped_evts, clipped_evts, max_vals, ths,
                     ymax = c + u
 
         # get y-lim from data (excluding values with 0 clipped events)
-        ax.set_ylim(0, ymax*1.1 if ymax < 90 else 100)
+        ax.set_ylim(0, ymax*1.1 if (ymax < 90 and ymax != 0)
+                        else (1 if ymax == 0 else 100))
 
         # formatting
         ax.set_title(f'ADC {i_adc} - {title}' if title else f'ADC {i_adc}')
@@ -1169,7 +1172,8 @@ def plot_clipped_ch_fraction(prev_clipped_evts, clipped_evts, max_vals, ths,
                     ymax = c + u
 
         # get y-lim from data (excluding values with 0 clipped events)
-        ax.set_ylim(0, ymax*1.1 if ymax < 90 else 100)
+        ax.set_ylim(0, ymax*1.1 if (ymax < 90 and ymax != 0)
+                        else (1 if ymax == 0 else 100))
 
         # formatting
         ax.set_title(f'ADC {i_adc} - {title}' if title else f'ADC {i_adc}')
@@ -1269,7 +1273,8 @@ def plot_neg_tpc_fraction(prev_neg_evts, neg_evts, max_vals, ths,
                 ymax = c + u
 
     # get y-lim from data (excluding values with 0 clipped events)
-    ax.set_ylim(0, ymax*1.1 if ymax < 90 else 100)
+    ax.set_ylim(0, ymax*1.1 if (ymax < 90 and ymax != 0)
+                    else (1 if ymax == 0 else 100))
 
     # formatting
     ax.set_title(f'ADC {i_adc} - {title}' if title else f'ADC {i_adc}')
@@ -1362,7 +1367,8 @@ def plot_neg_epcb_fraction(prev_neg_evts, neg_evts, max_vals, ths,
                 ymax = c + u
 
     # get y-lim from data (excluding values with 0 clipped events)
-    ax.set_ylim(0, ymax*1.1 if ymax < 90 else 100)
+    ax.set_ylim(0, ymax*1.1 if (ymax < 90 and ymax != 0)
+                    else (1 if ymax == 0 else 100))
 
     # formatting
     ax.set_title(f'ADC {i_adc} - {title}' if title else f'ADC {i_adc}')
@@ -1687,9 +1693,21 @@ def main():
         integrals = np.sum(wvfms, axis=(1,2,3))
         max_integral_evt = np.argmax(integrals)
 
+        # number of samples over noise threshold
+        samples_over_th = wvfms > ptps_16[np.newaxis, :, np.newaxis, np.newaxis]
+        nsamples_over_th = np.sum(samples_over_th, axis=(1,2,3))
+        max_nsamples_evt = np.argmax(nsamples_over_th)
+
+        # get event number containing the wvfm with the largest diff between consecutive samples
+        diffs = np.abs(np.diff(wvfms, axis=-1))
+        max_diffs = np.max(diffs, axis=(1,2,3))
+        max_diff_evt = np.argmax(max_diffs)
+
         ####################################################################
         # WIP: find a way to make this a tag for sparking / discharge events
-        evts = np.array([max_integral_evt])
+        #evts = np.array([max_integral_evt])
+        #evts = np.array([max_nsamples_evt])
+        evts = np.array([max_diff_evt])
         ####################################################################
 
         # sum waveform baselined
