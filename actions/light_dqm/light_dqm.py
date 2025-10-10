@@ -313,51 +313,59 @@ def plot_flatline_mask(flatline_mask, channel_status=None, times=None,
     plt.savefig(output)
 
 
-def check_baseline(prev_baseline, current_baseline, units='ADC16', threshold=200):
+def check_baseline(prev_baseline, current_baseline, units='ADC16', threshold=200, k_sigma=3.0, adc14_16=4.0):
     """
     Compare previous and current baseline arrays.
-    Each baseline is a list of 3 numpy arrays: [central, lower, upper], each shape (8, 64).
-    Returns a boolean mask (8, 64) where True indicates a significant change.
+    Each baseline is [central, lower, upper], each shape (8, 64).
+    Returns a boolean mask (8, 64) where True indicates a significant change,
+    and a status array (8, 64) indicating the reason:
+      1 = current uncertainty too large
+      2 = previous uncertainty too large
+      3 = significant directional change
+    Directional test:
+      - If curr > prev, use sqrt(curr_lower^2 + prev_upper^2)
+      - If curr < prev, use sqrt(curr_upper^2 + prev_lower^2)
     """
-    # if units == 'ADC14', change threshold to 250
-    if units == 'ADC14':
-        threshold = 250
+    # Adjust threshold for ADC14 units
+    thr = threshold / adc14_16 if units == 'ADC14' else threshold
 
-    # Unpack
     curr_c, curr_l, curr_u = current_baseline
+    mask = np.zeros_like(curr_c, dtype=bool)
+    status = np.zeros_like(curr_c, dtype=int)
 
-    # Compute margin for current baseline (max of lower/upper error)
-    margin = np.maximum(np.abs(curr_c - curr_l), np.abs(curr_c - curr_u))  # shape (8, 64)
-    # If margin exceeds threshold, flag as True
-    mask = margin > threshold
+    # Current uncertainty too large
+    curr_margin = np.maximum(curr_l, curr_u)
+    mask_curr = curr_margin > thr
+    mask |= mask_curr
+    status[mask_curr] = 1
 
-    # If previous baseline is None, return mask as is
     if prev_baseline is None:
-        return mask
+        return mask, status
 
-    # Unpack previous baseline
+    # checking against previous baseline
     prev_c, prev_l, prev_u = prev_baseline
 
-    # Compute difference between current and previous central values
-    diff = np.abs(curr_c - prev_c)
+    # Directional difference
+    diff = curr_c - prev_c
+    abs_diff = np.abs(diff)
 
-    # For points where current > previous
-    prev_upper = np.abs(curr_c - prev_u)
-    diff_margin_up = np.sqrt(np.square(np.abs(curr_c - curr_l)) + np.square(prev_upper))
+    # Directional combined uncertainty
+    sigma_sq = np.where(
+        diff > 0,
+        curr_l**2 + prev_u**2,
+        curr_u**2 + prev_l**2
+    )
+    sigma = np.sqrt(np.maximum(sigma_sq, np.finfo(float).eps))
+    mask_dir = abs_diff > (k_sigma * sigma)
 
-    # For points where current < previous
-    prev_lower = np.abs(curr_c - prev_l)
-    diff_margin_down = np.sqrt(np.square(np.abs(curr_c - curr_u)) + np.square(prev_lower))
+    # Only apply mask_dir where mask is not already True
+    mask |= mask_dir & (~mask)
+    status[mask_dir] = 2
 
-    # Where current > previous, use diff_margin_up; where current < previous, use diff_margin_down
-    greater = curr_c > prev_c
-    diff_margin = np.where(greater, diff_margin_up, diff_margin_down)
+    # status == 3 if both masks are True
+    status[mask & mask_dir] = 3
 
-    # If baselines are equal, no need to check (mask remains as is)
-    # Otherwise, flag if diff > 3*diff_margin
-    mask |= (diff > 3 * diff_margin)
-
-    return mask
+    return mask, status
 
 
 def plot_baseline_mask(baseline_mask, channel_status=None, times=None,
@@ -880,7 +888,7 @@ def plot_clipped_fraction(prev_clipped_evts, clipped_evts, title=None,
                     ymax = c + u
 
         # get y-lim from data (excluding values with 0 clipped events)
-        ax.set_ylim(0, ymax+5 if ymax < 95 else 100)
+        ax.set_ylim(0, ymax*1.1 if ymax < 90 else 100)
 
         # formatting
         ax.set_title(f'ADC {i_adc} - {title}' if title else f'ADC {i_adc}')
@@ -983,7 +991,7 @@ def plot_clipped_tpc_fraction(prev_clipped_evts, clipped_evts, max_vals, ths,
                     ymax = c + u
 
         # get y-lim from data (excluding values with 0 clipped events)
-        ax.set_ylim(0, ymax+5 if ymax < 95 else 100)
+        ax.set_ylim(0, ymax*1.1 if ymax < 90 else 100)
 
         # formatting
         ax.set_title(f'ADC {i_adc} - {title}' if title else f'ADC {i_adc}')
@@ -1075,7 +1083,7 @@ def plot_clipped_epcb_fraction(prev_clipped_evts, clipped_evts, max_vals, ths,
                     ymax = c + u
 
         # get y-lim from data (excluding values with 0 clipped events)
-        ax.set_ylim(0, ymax+5 if ymax < 95 else 100)
+        ax.set_ylim(0, ymax*1.1 if ymax < 90 else 100)
 
         # formatting
         ax.set_title(f'ADC {i_adc} - {title}' if title else f'ADC {i_adc}')
@@ -1161,7 +1169,7 @@ def plot_clipped_ch_fraction(prev_clipped_evts, clipped_evts, max_vals, ths,
                     ymax = c + u
 
         # get y-lim from data (excluding values with 0 clipped events)
-        ax.set_ylim(0, ymax+5 if ymax < 95 else 100)
+        ax.set_ylim(0, ymax*1.1 if ymax < 90 else 100)
 
         # formatting
         ax.set_title(f'ADC {i_adc} - {title}' if title else f'ADC {i_adc}')
@@ -1261,7 +1269,7 @@ def plot_neg_tpc_fraction(prev_neg_evts, neg_evts, max_vals, ths,
                 ymax = c + u
 
     # get y-lim from data (excluding values with 0 clipped events)
-    ax.set_ylim(0, ymax+5 if ymax < 95 else 100)
+    ax.set_ylim(0, ymax*1.1 if ymax < 90 else 100)
 
     # formatting
     ax.set_title(f'ADC {i_adc} - {title}' if title else f'ADC {i_adc}')
@@ -1354,7 +1362,7 @@ def plot_neg_epcb_fraction(prev_neg_evts, neg_evts, max_vals, ths,
                 ymax = c + u
 
     # get y-lim from data (excluding values with 0 clipped events)
-    ax.set_ylim(0, ymax+5 if ymax < 95 else 100)
+    ax.set_ylim(0, ymax*1.1 if ymax < 90 else 100)
 
     # formatting
     ax.set_title(f'ADC {i_adc} - {title}' if title else f'ADC {i_adc}')
@@ -1387,13 +1395,12 @@ def save_as_json(file_index, data_c, data_l, data_u, output_dir, filename):
         'data_l': data_l.tolist(),
         'data_u': data_u.tolist()
     }
-    file_path = output_dir + filename
     # Use append mode if file exists, else write mode
-    mode = 'a' if os.path.exists(file_path) else 'w'
-    with open(file_path, mode) as f:
+    mode = 'a' if os.path.exists(output_dir + '/' + filename) else 'w'
+    with open(output_dir + '/' + filename, mode) as f:
         json.dump(data, f)
         f.write('\n')
-    print(f"Data for file_index {file_index} ({filename}) saved to {output_dir}")
+    #print(f"Data for file_index {file_index} ({filename}) saved to {output_dir}")
 
 def read_from_json(file_indices, output_dir, filename):
     """
@@ -1454,7 +1461,7 @@ def save_spectra_as_json(file_index, spectra_roi, output_dir, filename):
     with open(output_dir + '/' + filename, mode) as f:
         json.dump(data, f)
         f.write('\n')
-    print(f"Data for file_index {file_index} ({filename}) saved to {output_dir}")
+    #print(f"Data for file_index {file_index} ({filename}) saved to {output_dir}")
 
 def save_eff_as_json(file_index, passed, totals, output_dir, filename):
     """
@@ -1472,7 +1479,7 @@ def save_eff_as_json(file_index, passed, totals, output_dir, filename):
         json.dump(data, f)
         f.write('\n')
         f.close()
-    print(f"Data for file_index {file_index} ({filename}) saved to {output_dir}")
+    #print(f"Data for file_index {file_index} ({filename}) saved to {output_dir}")
 
 
 def read_eff_from_json(file_indices, output_dir, filename):
@@ -1697,47 +1704,48 @@ def main():
             traceback.print_exc()
 
         # noise power spectra and rois
-        try:
-            # get mask
-            max_mask = get_max_value_mask(
-                max_values[:args.powspec_nevts], ptps
-            )
-            wvfms_v = adc16_to_voltage(wvfms[:args.powspec_nevts])
-            process_powsp_evts = len(wvfms_v)
+        if args.powspec_nevts > 0:
+            try:
+                # get mask
+                max_mask = get_max_value_mask(
+                    max_values[:args.powspec_nevts], ptps
+                )
+                wvfms_v = adc16_to_voltage(wvfms[:args.powspec_nevts])
+                process_powsp_evts = len(wvfms_v)
 
-            freq_bins, noise_spectra, noise_spectrum, upper, lower = get_noise_spectra(
-                wvfms_v) #, max_mask)
-            rois_mhz = np.array([0.5, 1.8, 4.6, 7.1, 8.5, 10, 11.5, 19, 20, 25, 30])
-            # convert to index from frequency bins
-            rois_bins = np.array([np.argmin(np.abs(freq_bins*1e-6 - roi)) for roi in rois_mhz])
+                freq_bins, noise_spectra, noise_spectrum, upper, lower = get_noise_spectra(
+                    wvfms_v) #, max_mask)
+                rois_mhz = np.array([0.5, 1.8, 4.6, 7.1, 8.5, 10, 11.5, 19, 20, 25, 30])
+                # convert to index from frequency bins
+                rois_bins = np.array([np.argmin(np.abs(freq_bins*1e-6 - roi)) for roi in rois_mhz])
 
-            # loop over rois, and save spectrum bin to json for tracking rois over time
-            for i_roi in range(len(rois_bins)):
-                roi_bin = rois_bins[i_roi]
-                spur = noise_spectrum[:, :, roi_bin]
-                # convert to string and replace '.' with '_' for naming convention
-                roi_mhz = str(rois_mhz[i_roi]).replace('.', '_')
-                # save to json
-                if args.write_json_blobs:
-                    save_spectra_as_json(
-                        i_file, spur, args.output_dir,
-                        f'noise_spectra_roi_{roi_mhz}mhz.json'
-                    )
-            # free memory
-            del wvfms_v
+                # loop over rois, and save spectrum bin to json for tracking rois over time
+                for i_roi in range(len(rois_bins)):
+                    roi_bin = rois_bins[i_roi]
+                    spur = noise_spectrum[:, :, roi_bin]
+                    # convert to string and replace '.' with '_' for naming convention
+                    roi_mhz = str(rois_mhz[i_roi]).replace('.', '_')
+                    # save to json
+                    if args.write_json_blobs:
+                        save_spectra_as_json(
+                            i_file, spur, args.output_dir,
+                            f'noise_spectra_roi_{roi_mhz}mhz.json'
+                        )
+                # free memory
+                del wvfms_v
 
-            # plot full spectrum
-            plot_noise_spectra_epcb(
-                freq_bins, noise_spectrum, None, None,
-                skip_bad_channels=True, nevts=process_powsp_evts,
-                output_name='plot5_powspec.pdf',
-            )
-            print(f"Noise spectra calculated for file: {filename}")
+                # plot full spectrum
+                plot_noise_spectra_epcb(
+                    freq_bins, noise_spectrum, None, None,
+                    skip_bad_channels=True, nevts=process_powsp_evts,
+                    output_name='plot5_powspec.pdf',
+                )
+                print(f"Noise spectra calculated for file: {filename}")
 
-        except Exception as e:
-            placeholder_pdf(args.tmp_dir, 'plot5_powspec.pdf',
-                            "Failed to plot noise spectra: plot5_powspec.pdf")
-            traceback.print_exc()
+            except Exception as e:
+                placeholder_pdf(args.tmp_dir, 'plot5_powspec.pdf',
+                                "Failed to plot noise spectra: plot5_powspec.pdf")
+                traceback.print_exc()
 
 
         # reading and writing noise widths
@@ -2116,10 +2124,15 @@ def main():
         # baseline fluctuations
         try:
             # checking for baseline fluctuations
-            baselined = check_baseline(
-                prev_baselines, (bline_c, bline_l, bline_u), units=args.units,
-                threshold = 500
+            baselined, status = check_baseline(
+                prev_baselines, (bline_c, bline_l, bline_u),
+                units=args.units, threshold=500
             )
+            #############################################################
+            # WIP: plot using status to detail whether deviation within #
+            #      this file or compared to previous files              #
+            #############################################################
+
             # plotting baseline fluctuations for grafana
             plot_baseline_mask(
                 baselined, cs, output_name=f'{args.output_dir}/{short_filename}_light_dqm_baseline.png',
