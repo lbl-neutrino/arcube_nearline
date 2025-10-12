@@ -79,7 +79,6 @@ def parse_args():
     parser.add_argument('--merge_grafana_plots', type=bool, default=False, help='Merge baselines and flatlines grafana plots')
     parser.add_argument('--plot_all_clipped', type=bool, default=False, help='Plot all clipped waveform plots')
     parser.add_argument('--plot_all_negatives', type=bool, default=False, help='Plot all negative baseline plots')
-    parser.add_argument('--nsamples', type=int, default=1000, help='Number of samples in each waveform')
 
     return parser.parse_args()
 
@@ -92,7 +91,6 @@ ptps16bit = args.ptps16bit
 default_units = args.units
 
 SAMPLE_RATE = 0.016  # us per sample
-SAMPLES = args.nsamples # samples per waveform
 adc14_max = 8191
 adc14_16 = 2**2      # Conversion factor between 14 and 16 bit ADC
 
@@ -516,6 +514,7 @@ def plot_sum_waveform(waveform, units='ADC16', i_evt=0, output_name='sum_wavefor
     # waveform shape: (n_events, n_adcs, n_channels, n_samples)
     n_epcbs = int(len(channels) // 6)
     n_adcs = waveform.shape[1]
+    n_samples = waveform.shape[3]
     nrows = n_adcs * (n_epcbs // 2)
     ncols = 2
     _, axes = plt.subplots(nrows, ncols, figsize=(20, 2 * nrows), sharex=True)
@@ -545,7 +544,7 @@ def plot_sum_waveform(waveform, units='ADC16', i_evt=0, output_name='sum_wavefor
             axes[idx, tt_idx].set_ylabel(f'{units} counts')
             axes[idx, tt_idx].legend(loc='upper right', fontsize='small')
             axes[idx, tt_idx].grid(True)
-            axes[idx, tt_idx].set_xlim(0, SAMPLES)
+            axes[idx, tt_idx].set_xlim(0, n_samples)
             axes[idx, tt_idx].set_ylim(-5000, 70000)
     axes[-1, 0].set_xlabel('Samples/ time (ticks)')
     axes[-1, 1].set_xlabel('Samples/ time (ticks)')
@@ -587,7 +586,7 @@ def plot_noises(prev_noises, noises, i_evt, mask_inactive=True,
             lower = -lowers[i, :]
             upper = uppers[i, :]
             # Set alpha to 0.5 for bad channels (cs != 0)
-            if format_bad_channels and cs.shape == (8, 64):
+            if format_bad_channels and cs.shape == (n_adcs, len(channels_idx)):
                 alphas = np.ones_like(median)
                 bad_mask = cs[i, :] != 0
                 alphas[bad_mask] = 0.25
@@ -624,7 +623,7 @@ def plot_noises(prev_noises, noises, i_evt, mask_inactive=True,
     axes[-1].set_xlabel('channel #')
     # adjust layout
     plt.tight_layout()
-    plt.show()
+
     # save as pdf
     output_pdf = f"{args.tmp_dir}/{output_name}"
     with PdfPages(output_pdf) as pdf:
@@ -659,7 +658,7 @@ def plot_baselines(prev_baselines, baselines, i_evt, mask_inactive=True,
             upper = uppers[i, mask]
 
             # Set alpha to 0.5 for bad channels (cs != 0)
-            if format_bad_channels and cs.shape == (8, 64):
+            if format_bad_channels and cs.shape == (n_adcs, len(channels_idx)):
                 alphas = np.ones_like(median)
                 bad_mask = cs[i, :] != 0
                 alphas[bad_mask] = 0.25
@@ -697,7 +696,6 @@ def plot_baselines(prev_baselines, baselines, i_evt, mask_inactive=True,
     # adjust layout
     axes[-1].set_xlabel('channel #')
     plt.tight_layout()
-    plt.show()
     # save as pdf
     output_pdf = f"{args.tmp_dir}/{output_name}"
     with PdfPages(output_pdf) as pdf:
@@ -725,13 +723,14 @@ def get_noise_spectra(waveform, mask=None):
     # mask waveform, set to Nan
     if mask is not None:
         waveform = np.where(mask[..., np.newaxis], waveform, np.nan)
+    n_samples = waveform.shape[3]
     # calculate the FFT of the waveform
-    fft_N = rfft(waveform, axis=-1) / int(SAMPLES/2+1)
+    fft_N = rfft(waveform, axis=-1) / int(n_samples/2+1)
     # calculate the power spectrum
     power_spectra = 2*np.abs(fft_N)**2
     upper_quantile, power_spectrum, lower_quantile = np.nanquantile(power_spectra, [0.84, 0.5, 0.16], axis=0)
     # calculate the frequency bins
-    freq_bins = rfftfreq(SAMPLES, d=SAMPLE_RATE * 1e-6)
+    freq_bins = rfftfreq(n_samples, d=SAMPLE_RATE * 1e-6)
     return freq_bins, power_spectra, power_spectrum, upper_quantile, lower_quantile
 
 # plot the average noise spectrum
@@ -755,7 +754,7 @@ def plot_noise_spectra_epcb(
             channels_list = channels[j*6:(j+1)*6]
             epcb_mask[channels_list] = True
             # Mask for good channels
-            if skip_bad_channels and cs.shape == (8, 64):
+            if skip_bad_channels and cs.shape == (n_adcs, len(channels_list)):
                 ch_mask = (cs[i, :] == 0)
             else:
                 ch_mask = np.ones(noise_spectra.shape[1], dtype=bool)
@@ -814,7 +813,7 @@ def plot_noise_spectra_channels(
             channels_list = channels[j*6:(j+1)*6]
             epcb_mask[channels_list] = True
             # Mask for good channels
-            if skip_bad_channels and cs.shape == (8, 64):
+            if skip_bad_channels and cs.shape == (n_adcs, len(channels_list)):
                 ch_mask = (cs[i, :] == 0)
             else:
                 ch_mask = np.ones(noise_spectra.shape[1], dtype=bool)
@@ -884,7 +883,7 @@ def plot_clipped_fraction(prev_clipped_evts, clipped_evts, title=None,
 
         # define alpha 0.25 for cs!=0
         alphas = np.ones_like(clipped_pct)
-        if cs.shape == (8, 64):
+        if cs.shape == (n_adcs, n_chs):
             bad_mask = cs[i_adc, :] != 0
             alphas[bad_mask] = 0.25
         # Plot each point individually to allow per-point alpha
@@ -1580,6 +1579,7 @@ def placeholder_pdf(output_dir, filename, message):
         plt.close()
     print(f"Placeholder PDF created: {output_pdf}")
 
+
 # ----------------------------- #
 #             Main              #
 # ----------------------------- #
@@ -1754,8 +1754,10 @@ def main():
                           args.units, i_evt=evt, output_name='plot1_sumwvfm.pdf')
             print(f"Sum waveform plotted for file: {filename}")
         except Exception as e:
+
             placeholder_pdf(args.tmp_dir, 'plot1_sumwvfm.pdf',
                             "Failed to plot summed waveforms: plot1_sumwvfm.pdf")
+
             traceback.print_exc()
 
         # noise power spectra and rois
@@ -2028,6 +2030,7 @@ def main():
                         prev_strig_clipped, strig_clipped, strig_max_values, ptps,
                         "Self-trigger Trigger  (% of events with clipped waveforms, normalized per channel)",
                         output_name='plot8_clipped_ch_self.pdf'
+
                     )
                     # write channel clipped fraction
                     if args.write_json_blobs: save_eff_as_json(i_file, clip_pass, clip_tot,

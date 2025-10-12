@@ -4,7 +4,8 @@ stage=flowed_light
 
 source $(dirname $BASH_SOURCE)/../lib/init.inc.sh
 
-inbase=$data_root/LRS_run2
+inname=${ARCUBE_NEARLINE_DATA_DIR_NAME:-LRS_run2}
+inbase=$data_root/$inname
 
 inpath=$1; shift
 

@@ -9,3 +9,5 @@ source _install/nearline.venv/bin/activate
 export FW_CONFIG_FILE=$(realpath config/FW_config.yaml)
 
 export ROOT_OF_ARCUBE_NEARLINE=$PWD
+
+export HDF5_USE_FILE_LOCKING=FALSE
