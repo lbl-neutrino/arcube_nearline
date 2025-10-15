@@ -34,4 +34,7 @@ workflow='yamls/proto_nd_flow/workflows/light/light_event_building_mpd_Run2.yaml
 
 rm -f "$flowpath"
 
-h5flow -c "$workflow" -i "$inpath" -o "$flowpath" 2>&1 | tee "$logpath"
+set -o errexit
+set -o pipefail
+h5flow -c "$workflow" -i "$inpath" -o "$flowpath.tmp" 2>&1 | tee "$logpath"
+mv "$flowpath.tmp" "$flowpath"
