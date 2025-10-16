@@ -57,20 +57,11 @@ def main(input_file, output_file):
     print('Extracting ASIC configs...')
     buf = io.BytesIO(np.array(h5f['daq_configs']).data)
 
-    with tarfile.open(fileobj=buf) as tarf:
-        name = tarf.getmembers()[0].name
-        if Path(name).exists():
-            msg = f'Directory {name} already exists; not extracting, sorry'
-            # raise RuntimeError(msg)
-        
-        # select only asic_configs for slightly faster untar
-        subdir_and_files = [ tarinfo for tarinfo in tarf.getmembers() if "asic_configs" in tarinfo.name ]
-        # print(subdir_and_files)
-        tarf.extractall(members=subdir_and_files)
+    tarf = tarfile.open(fileobj=buf)
+    subdir_and_files = [ tarinfo for tarinfo in tarf.getmembers() if "asic_configs" in tarinfo.name ]
 
-    print('Extracted.')
     # Group Values by Field and by io_group
-    pattern = re.compile(r"config_(\d+)-\d+-\d+\.json")
+    pattern = re.compile(r".*/config_(\d+)-\d+-\d+\.json")
     
     # field_data[field][io_group] = list of values
     field_data = defaultdict(lambda: defaultdict(list))
@@ -80,15 +71,13 @@ def main(input_file, output_file):
     
     count_disabled_channels = 0
 
-    asic_config_folder = os.path.join(name, 'asic_configs')
-
     print('Looping over the ASIC configs...')
-    for filename in tqdm.tqdm(os.listdir(asic_config_folder)):
+    for tarinfo in tqdm.tqdm(subdir_and_files):
+        filename = tarinfo.name
         match = pattern.match(filename)
         if match:
             io_group = int(match.group(1))
-            filepath = os.path.join(asic_config_folder, filename)
-            with open(os.path.join(asic_config_folder, filename), 'r') as f:
+            with tarf.extractfile(filename) as f:
                 data = json.load(f)
                 for key, value in data.items():
                     # Skip by exact field name
@@ -111,9 +100,6 @@ def main(input_file, output_file):
                     if 'channel_mask' in data.keys():
                         count_disabled_channels += data['channel_mask'].count(1) - 15
 
-    # Remove ASIC configs
-    shutil.rmtree(name, ignore_errors=True)
-    
     # Count number of disabled channels
     count_disabled_channels += (6 * 8 * 100 - count_v2a_chips) * 49 + (2 * 8 * 100 - count_v2b_chips) * 64
 
