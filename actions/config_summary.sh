@@ -31,4 +31,4 @@ fi
 
 mkdir -p "$(dirname "$plotpath")" "$(dirname "$logpath")"
 
-./config_summary.py --input_file "$inpath" --output_file "$plotpath" 2>&1 | tee "$logpath"
+python ./config_summary.py --input_file "$inpath" --output_file "$plotpath" 2>&1 | tee "$logpath"
