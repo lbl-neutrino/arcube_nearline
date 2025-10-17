@@ -24,7 +24,7 @@ class Watcher:
     def __init__(self, prog: Path, paths: list[Path], exts: list[str],
                  cond: Callable[[Path], bool],
                  sleep_between_scans: int, min_file_age: int, max_file_age: Optional[int],
-                 priority: int):
+                 priority: int, dry_run: bool):
         self.prog = prog
         self.paths = paths
         self.exts = exts
@@ -33,6 +33,7 @@ class Watcher:
         self.min_file_age = min_file_age
         self.max_file_age = max_file_age
         self.priority = priority
+        self.dry_run = dry_run
 
         self.seen_files = set()
         self.lpad = LaunchPad.auto_load()
@@ -45,6 +46,10 @@ class Watcher:
              (time.time() - p.stat().st_mtime < self.min_file_age) or
              (self.max_file_age and (time.time() - p.stat().st_mtime > self.max_file_age))):
             # print(f'NO: {p}')
+            return None
+
+        if self.dry_run:
+            print(f'Found {p}')
             return None
 
         script = f'{self.prog} {p}'
@@ -112,6 +117,8 @@ def main():
                     help='Maximum seconds since last update for file to be deemed "fresh"')
     ap.add_argument('--priority', type=int, default=0,
                     help='Tasks with higher priorities run first')
+    ap.add_argument('--dry-run', action='store_true',
+                    help='Print the found files, but do not queue them')
     args = ap.parse_args()
 
     if args.path:
@@ -132,7 +139,7 @@ def main():
 
     w = Watcher(args.prog.absolute(), paths, exts, cond,
                 args.sleep_between_scans, args.min_file_age,
-                args.max_file_age, args.priority)
+                args.max_file_age, args.priority, args.dry_run)
     # w.snarf()
     # w.watch()
     w.watch_dumb()
