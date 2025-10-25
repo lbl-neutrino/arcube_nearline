@@ -89,6 +89,7 @@ class Watcher:
     def watch_dumb(self):
         while True:
             self.snarf()
+            print(f'NAPPING FOR {self.sleep_between_scans} SECONDS')
             time.sleep(self.sleep_between_scans)
 
 
