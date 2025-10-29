@@ -34,11 +34,12 @@ workflow2='yamls/proto_nd_flow/workflows/charge/charge_event_reconstruction_data
 workflow3='yamls/proto_nd_flow/workflows/combined/combined_reconstruction_data.yaml'
 workflow4='yamls/proto_nd_flow/workflows/charge/prompt_calibration_data_Run2.yaml'
 workflow5='yamls/proto_nd_flow/workflows/charge/final_calibration_data.yaml'
+workflow6='yamls/proto_nd_flow/workflows/rock_muon_selection_data.yaml'
 
 rm -f "$flowpath" "$flowpath.tmp"
 
 # time h5flow -c "$workflow1" "$workflow2" "$workflow3" "$workflow4" "$workflow5" \
-time h5flow -c "$workflow1" "$workflow2" "$workflow3" "$workflow4" \
+time h5flow -c "$workflow1" "$workflow2" "$workflow3" "$workflow4" "$workflow6"\
     -i "$inpath" -o "$flowpath.tmp" 2>&1 | tee "$logpath"
 
 mv "$flowpath.tmp" "$flowpath"
