@@ -42,9 +42,9 @@ class Watcher:
     def maybe_make_firework(self, p: Path):
         if ( (p in self.seen_files) or
              (not self.cond(p)) or
-             self.find_firework(p) or
              (time.time() - p.stat().st_mtime < self.min_file_age) or
-             (self.max_file_age and (time.time() - p.stat().st_mtime > self.max_file_age))):
+             (self.max_file_age and (time.time() - p.stat().st_mtime > self.max_file_age)) or
+             self.find_firework(p)):
             # print(f'NO: {p}')
             return None
 
