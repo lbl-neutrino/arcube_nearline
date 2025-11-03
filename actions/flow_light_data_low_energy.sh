@@ -31,12 +31,11 @@ fi
 cd $ROOT_OF_ARCUBE_NEARLINE/_install/ndlar_flow
 
 #workflow='yamls/proto_nd_flow/workflows/light/light_event_building_mpd_Run2.yaml'
-workflow_1='yamls/proto_nd_flow/workflows/light/light_event_building_mpd_Run2.yaml'
-workflow_2='yamls/proto_nd_flow/workflows/light/light_event_reconstruction_data_LowEnergy.yaml'
+workflow_1='yamls/proto_nd_flow/workflows/light/light_event_reconstruction_data_LowEnergy.yaml'
 
 rm -f "$flowpath"
 
 set -o errexit
 set -o pipefail
-h5flow -c "$workflow_1" "$workflow_2" -i "$inpath" -o "$flowpath.tmp" --compression gzip 2>&1 | tee "$logpath"
+h5flow -c "$workflow_1" -i "$inpath" -o "$flowpath.tmp" --compression gzip 2>&1 | tee "$logpath"
 mv "$flowpath.tmp" "$flowpath"
