@@ -10,11 +10,6 @@ import matplotlib
 matplotlib.rcParams.update({'font.size': 15})
 
 
-def date_from_filename(filename):
-    date_str = filename.split('-')[-1].split('_CDT')[0]
-    timestamp = datetime.strptime(date_str,"%Y_%m_%d_%H_%M_%S")
-    return timestamp
-
 def mask_for_data(p, io_group=None):
     m = np.logical_and(p['packet_type'] == 0, p['valid_parity'] == 1)
     if io_group is None:

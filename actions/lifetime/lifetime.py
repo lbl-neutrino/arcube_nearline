@@ -10,12 +10,7 @@ import pylandau
 from datetime import datetime
 import lifetime_funcs as LT
 
-def date_from_muon_filename(filename):
-    date_str = filename.split('-')[-1].split('_CDT')[0]
-
-    timestamp = datetime.strptime(date_str,"%Y_%m_%d_%H_%M_%S")
-
-    return timestamp
+from nearline_util import date_from_filename
 
 
 def main(input_file, output_file):
@@ -32,7 +27,7 @@ def main(input_file, output_file):
     segments_masked = segments[mask]
     print(f"Extracting Lifetime using {len(segments_masked)} segments")
 
-    timestamp = date_from_muon_filename(input_file)   
+    timestamp = date_from_filename(input_file)
      
     lifetime, lifetime_error, fig = LT.langau_lifetime(nhits=segments_masked['nhits']/segments_masked['dx'],
                                                   dqdx=segments_masked['dQ']/segments_masked['dx'],

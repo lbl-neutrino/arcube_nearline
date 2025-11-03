@@ -7,7 +7,7 @@ for FILE in ${INPUT_FILES}
 do
   #echo ${FILE}
   OUTNAME="${FILE##*/}"
-  OUTNAME=`echo ${OUTNAME} | sed 's/_CDT.h5/_CDT/'`
+  OUTNAME=`echo ${OUTNAME} | sed 's/_\(...\).h5/_\1/'`
   OUTNAME='selftrig_04Apr2024/summary/'${OUTNAME}''
   # don't do it again if it's already been done
   if [[ -f "${OUTNAME}".json ]]; then

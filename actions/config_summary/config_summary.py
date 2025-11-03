@@ -18,11 +18,6 @@ import math
 
 plt.rcParams.update({'font.size': 15}) # Sets the global default font size
 
-def date_from_ped_filename(filename):
-    date_str = filename.split('-')[-1].split('_CDT')[0]
-    timestamp = datetime.strptime(date_str,"%Y_%m_%d_%H_%M_%S")
-    return timestamp
-
 def main(input_file, output_file):
 
     # Fields to skip in ASIC configs

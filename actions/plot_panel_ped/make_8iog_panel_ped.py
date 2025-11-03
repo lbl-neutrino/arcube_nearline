@@ -15,6 +15,8 @@ from matplotlib.colors import Normalize
 import argparse
 from collections import defaultdict
 
+from nearline_util import date_from_filename
+
 
 centerline_chip_id=list(range(20,120,10))
 horizontal_chip_id=list(range(11,21,1))+list(range(101,111,1))
@@ -230,19 +232,10 @@ def make_summary_plot(d, ax):
             ax[i].set_xlabel('ADC RMS')
             ax[i].legend()
 
-def date_from_ped_filename(filename):
-    #date_str = filename.split('-')[-1].split('.json')[0]
-    #date_str = filename.split('-')[-1].split('CET.json')[0]
-    date_str = filename.split('-')[-1].split('_CDT.h5.panel_ped.json')[0]
-    #timestamp = datetime.fromisoformat(date_str)
-    print(date_str)
-    #timestamp = datetime.strptime(date_str,"%Y_%m_%d_%H_%M%Z")
-    timestamp = datetime.strptime(date_str,"%Y_%m_%d_%H_%M_%S")
-    return timestamp
 
 def main(input_file, output_file):
 
-    timestamp = date_from_ped_filename(input_file)
+    timestamp = date_from_filename(input_file)
 
     with open(input_file,'r') as f: d = json.load(f)
     geo_mod0 = load_multitile_geometry('layouts_v4/multi_tile_layout-2.3.16_mod0_swap_T8T4T7.yaml')

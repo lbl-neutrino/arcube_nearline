@@ -6,10 +6,7 @@ import argparse
 from datetime import datetime
 import numpy as np
 
-def date_from_ped_filename(filename):
-    date_str = filename.split('-')[-1].split('_CDT')[0]
-    timestamp = datetime.strptime(date_str,"%Y_%m_%d_%H_%M_%S")
-    return timestamp
+from nearline_util import date_from_filename
 
 def main(input_file, output_file):
     
@@ -19,7 +16,7 @@ def main(input_file, output_file):
 
     mask = f['packets']['packet_type'] == 0
 
-    timestamp = date_from_ped_filename(input_file)    
+    timestamp = date_from_filename(input_file)
     
     print('Counting the number of data packets per channel...')
     key, counts = np.unique(f['packets'][mask][['io_group', 'io_channel', 'chip_id', 'channel_id']], return_counts=True)
