@@ -4,8 +4,7 @@ stage=flowed_light_low_energy
 
 source $(dirname $BASH_SOURCE)/../lib/init.inc.sh
 
-inname=${ARCUBE_NEARLINE_DATA_DIR_NAME:-LRS_run2}
-inbase=$data_root/$inname
+inbase=$nearline_root/flowed_light
 
 inpath=$1; shift
 
@@ -15,12 +14,12 @@ get_outpath() {
 
     indir=$(dirname "$inpath")
     reldir=$(echo "$indir" | sed "s|^$inbase/||")
-    outname=$(basename "$inpath" .data).$ext
+    outname=$(basename "$inpath" .FLOW.hdf5).$ext
     mkdir -p "$outbase/$reldir"
     realpath "$outbase/$reldir/$outname"
 }
 
-flowpath=$(get_outpath "$data_outbase" FLOW.hdf5)
+flowpath=$(get_outpath "$data_outbase" FLOW_LE.hdf5)
 logpath=$(get_outpath "$log_outbase" log)
 
 if [[ "$(stat -c %s "$inpath")" -gt 50000000000 ]]; then
