@@ -166,9 +166,10 @@ def main():
     text_file_dirname = 'CL_matching_inputs'
     if args.text_file_dirname:
         text_file_dirname = args.text_file_dirname
-    text_file_dir = os.path.join(os.path.dirname(args.charge_dir_path), 'lowE_matching_inputs')
-    if not os.path.exists(text_file_dir):
-        os.mkdir(text_file_dir)
+    main_dir = os.path.dirname(args.charge_dir_path)
+    text_file_dir_main = os.path.join(main_dir, 'lowE_matching_inputs')
+    if not os.path.exists(text_file_dir_main):
+        os.mkdir(text_file_dir_main)
     
     while True:
         #### find matched LRO and CRO files from runs DB
@@ -210,6 +211,9 @@ def main():
         # make text file for each LRO file with matched CRO files
         for i, lro_filepath in enumerate(found_matched_lro_filepaths):
             text_filename = os.path.basename(lro_filepath).split('.')[0] + '.INPUTS.txt'
+            text_file_dir_part = os.path.relpath(os.path.dirname(lro_filepath), main_dir)
+            text_file_dir = os.path.join(text_file_dir_main, text_file_dir_part)
+            os.makedirs(text_file_dir, exist_ok=True)
             text_filepath = os.path.join(text_file_dir, text_filename)
             if os.path.exists(text_filepath):
                 with open(text_filepath, "r") as f:
