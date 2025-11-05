@@ -109,7 +109,7 @@ def main():
     ap.add_argument('--path-file')
     ap.add_argument('--require-binary', action='store_true')
     ap.add_argument('--ext', help='File extension (if not h5 / hdf5)')
-    ap.add_argument('--base-dir', type=Path)
+    ap.add_argument('--base-dir', type=Path, default=Path('/'))
     ap.add_argument('--sleep-between-scans', type=int, default=30,
                     help='Seconds to sleep between filesystem scans')
     ap.add_argument('--min-file-age', type=int, default=30,
