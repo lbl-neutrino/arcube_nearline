@@ -156,11 +156,19 @@ def main():
     ap.add_argument('--file_ending', help='File ending to search for in charge and light dirs (if not .hdf5)')
     ap.add_argument('--sleep_between_scans', type=int, default=30,
                     help='Minutes to sleep between filesystem/DB scans')
+    ap.add_argument('--text_file_dirname', help='Directory name to put text files with matched files (not a path)')
     
     args = ap.parse_args()
     file_ending = '.hdf5'
     if args.file_ending:
         file_ending = args.file_ending
+
+    text_file_dirname = 'CL_matching_inputs'
+    if args.text_file_dirname:
+        text_file_dirname = args.text_file_dirname
+    text_file_dir = os.path.join(os.path.dirname(args.charge_dir_path), 'lowE_matching_inputs')
+    if not os.path.exists(text_file_dir):
+        os.mkdir(text_file_dir)
     
     while True:
         #### find matched LRO and CRO files from runs DB
@@ -202,7 +210,7 @@ def main():
         # make text file for each LRO file with matched CRO files
         for i, lro_filepath in enumerate(found_matched_lro_filepaths):
             text_filename = os.path.basename(lro_filepath).split('.')[0] + '.INPUTS.txt'
-            text_filepath = os.path.join(os.path.dirname(lro_filepath), text_filename)
+            text_filepath = os.path.join(text_file_dir, text_filename)
             if os.path.exists(text_filepath):
                 with open(text_filepath, "r") as f:
                     lines = [line.strip() for line in f.readlines()]
