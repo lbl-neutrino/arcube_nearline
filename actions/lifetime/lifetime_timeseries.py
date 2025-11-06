@@ -7,16 +7,10 @@ import argparse
 
 
 def main(input_file, output_file):
-    # Load the JSON file
     with open(input_file, "r") as f:
         data = json.load(f)["lifetimes"]
     
-    # Extract timestamps and values
-    # timestamps = [datetime.fromisoformat(entry["timestamp"]) for entry in data["lifetimes"]]
-    # lifetimes = [entry["lifetime_ms"] for entry in data["lifetimes"]]
-    # errors = [entry["error_ms"] for entry in data["lifetimes"]]
     
-    # Convert timestamps to datetime objects and pair with values
     entries = [
         (datetime.fromisoformat(entry["timestamp"]), entry["lifetime_us"], entry["error_us"])
         for entry in data
