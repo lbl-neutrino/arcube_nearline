@@ -18,8 +18,11 @@ get_outpath() {
     echo "$outbase/$reldir/$outname"
 }
 
+jsonpath="$json_outbase/json_elifetime.json"
 plotpath=$(get_outpath "$plot_outbase" png)
 logpath=$(get_outpath "$log_outbase" log)
+
+globalplotpath="$plot_outbase/eliftime_time_series.png"
 
 cd "$(dirname "${BASH_SOURCE[0]}")/lifetime"
 
@@ -28,6 +31,7 @@ if [[ "$(stat -c %s "$inpath")" -gt 10000000000 ]]; then
     exit 1
 fi
 
-mkdir -p "$(dirname "$plotpath")" "$(dirname "$logpath")"
+mkdir -p "$(dirname "$plotpath")" "$(dirname "$logpath")" "$(dirname "$jsonpath")" 
 
-python lifetime.py --input_file "$inpath" --output_file "$plotpath" 2>&1 | tee "$logpath"
+python lifetime.py --input_file "$inpath" --output_file_plot "$plotpath"  --output_file_json "$jsonpath" 2>&1 | tee "$logpath"
+python lifetime_timeseries.py --input_file "$jsonpath" --output_file "$globalplotpath" 2>&1 |tee "$logpath"
