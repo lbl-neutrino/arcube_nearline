@@ -5,6 +5,8 @@ import h5py
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import argparse
+import os
+import json 
 
 import pylandau
 from datetime import datetime
@@ -13,7 +15,7 @@ import lifetime_funcs as LT
 from nearline_util import date_from_filename
 
 
-def main(input_file, output_file):
+def main(input_file, output_file_plot, output_file_json):
     segments = []
 
     print('Opening File ')
@@ -38,18 +40,41 @@ def main(input_file, output_file):
                                                   wanted_title=timestamp)
     
     print(f"Timestamp: {timestamp}, Lifetime: {lifetime} +- {lifetime_error}")
-    fig.savefig(output_file)
+
+    if os.path.exists(output_file_json):
+        with open(output_file_json, "r") as f:
+            data = json.load(f)
+    else:
+        data = {"lifetimes": []}
+    
+    new_entry = {
+        "timestamp": timestamp.isoformat(),
+        "lifetime_us": lifetime,
+        "error_us": lifetime_error
+    }
+    data["lifetimes"].append(new_entry)
+    with open(output_file_json, "w") as f:
+        json.dump(data, f, indent=2)
+
+
+    fig.savefig(output_file_plot)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--input_file', type=str, default=None, \
                         help="Path to muon hdf5 file", required=True)
-    
-    parser.add_argument('--output_file', default=None, \
+     
+
+    parser.add_argument('--output_file_plot', default=None, \
                         type=str, help='''Output plot file''',
+                        required=True)
+    
+    parser.add_argument('--output_file_json', default=None, \
+                        type=str, help='''Output josn file''',
                         required=True)
     
     args = parser.parse_args()
     print(args)
     main(**vars(args))
+
