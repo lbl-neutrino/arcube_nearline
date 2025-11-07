@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-stage=flowed_light_low_energy
+stage=flowed_light_low_energy_v2
 
 source $(dirname $BASH_SOURCE)/../lib/init.inc.sh
 
