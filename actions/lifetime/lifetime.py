@@ -7,7 +7,7 @@ import matplotlib.dates as mdates
 import argparse
 import os
 import json 
-
+from flufl.lock import Lock
 import pylandau
 from datetime import datetime
 import lifetime_funcs as LT
@@ -41,20 +41,21 @@ def main(input_file, output_file_plot, output_file_json):
     
     print(f"Timestamp: {timestamp}, Lifetime: {lifetime} +- {lifetime_error}")
 
-    if os.path.exists(output_file_json):
-        with open(output_file_json, "r") as f:
-            data = json.load(f)
-    else:
-        data = {"lifetimes": []}
-    
-    new_entry = {
-        "timestamp": timestamp.isoformat(),
-        "lifetime_us": lifetime,
-        "error_us": lifetime_error
-    }
-    data["lifetimes"].append(new_entry)
-    with open(output_file_json, "w") as f:
-        json.dump(data, f, indent=2)
+    with Lock(output_file_json + '.lock'):
+        if os.path.exists(output_file_json):
+            with open(output_file_json, "r") as f:
+                data = json.load(f)
+        else:
+            data = {"lifetimes": []}
+
+        new_entry = {
+            "timestamp": timestamp.isoformat(),
+            "lifetime_us": lifetime,
+            "error_us": lifetime_error
+        }
+        data["lifetimes"].append(new_entry)
+        with open(output_file_json, "w") as f:
+            json.dump(data, f, indent=2)
 
 
     fig.savefig(output_file_plot)

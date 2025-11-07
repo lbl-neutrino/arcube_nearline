@@ -60,6 +60,9 @@ pip install adc64format
 pip install awkward emoji pandas # 🐼
 pip install PyPDF2
 
+# For lifetime time series:
+pip install flufl.lock
+
 cd "$basedir"
 
 confdir=$(realpath config)

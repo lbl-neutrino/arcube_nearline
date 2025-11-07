@@ -22,7 +22,7 @@ jsonpath="$json_outbase/json_elifetime.json"
 plotpath=$(get_outpath "$plot_outbase" png)
 logpath=$(get_outpath "$log_outbase" log)
 
-globalplotpath="$plot_outbase/eliftime_time_series.png"
+globalplotpath="$plot_outbase/elifetime_time_series.png"
 
 cd "$(dirname "${BASH_SOURCE[0]}")/lifetime"
 
