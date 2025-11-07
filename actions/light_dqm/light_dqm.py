@@ -267,7 +267,7 @@ def plot_flatline_mask(flatline_mask, channel_status=None, times=None,
             if channel_status is not None and channel_status[i, j] == -1:
                 continue
             if grafana:
-                if channel_status is not None and channel_status[i, j] in [1,3]:
+                if channel_status is not None and channel_status[i, j] > 0: #in [1,3]:
                         ax.plot(j, i, marker='.', color='black', markersize=10)
                 elif flatline_mask[i, j]:
                         ax.text(
@@ -282,12 +282,12 @@ def plot_flatline_mask(flatline_mask, channel_status=None, times=None,
 
 
             else:
-                if flatline_mask[i, j]:
+                if channel_status is not None and channel_status[i, j] > 0: #in [1,3]:
+                    ax.plot(j, i, marker='.', color='black', markersize=10)
+                elif flatline_mask[i, j]:
                     ax.plot(j, i, marker='x', color='red', markersize=12, markeredgewidth=2)
                 else:
                     ax.plot(j, i, marker='o', color='green', markersize=10, fillstyle='none')
-                if channel_status is not None and channel_status[i, j] in [1,3]:
-                    ax.plot(j, i, marker='.', color='black', markersize=10)
 
 
     plt.title("Alive and dead channels", y=1.18, fontsize=14)
