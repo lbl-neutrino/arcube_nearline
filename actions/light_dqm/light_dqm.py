@@ -65,7 +65,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Process and plot DUNE light file data.")
     parser.add_argument('--input_path', type=str, default='.', help='Path to input file')
     parser.add_argument('--file_syntax', type=str, default='.', help='File name syntax')
-    parser.add_argument('--channel_status_file', type=str, default='actions/light_dqm/channel_status_warmRun2.csv', help='Channel status file')
+    parser.add_argument('--channel_status_file', type=str, default='actions/light_dqm/channel_status.csv', help='Channel status file')
     parser.add_argument('--output_dir', type=str, default='dqm_plots/', help='Directory to save final output plots')
     parser.add_argument('--tmp_dir', type=str, default='tmp/', help='Directory to save temporary output plots')
     parser.add_argument('--units', type=str, default='ADC16', choices=['ADC16', 'ADC14', 'V'], help='Units for waveform')
