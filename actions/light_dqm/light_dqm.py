@@ -531,7 +531,7 @@ def plot_sum_waveform(waveform, units='ADC16', i_evt=0, output_name='sum_wavefor
             tt_idx = j % 2
             channels_list = channels[j * 6:(j + 1) * 6]
             # Extract waveform for this event, ADC, and EPCB channels
-            epcb_signals = np.sum((np.max(waveform[:, i, channels_list, :], axis=-1) > 5e2), axis=-1)
+            epcb_signals = np.sum((np.max(waveform[:, i, channels_list, :], axis=-1) > 3e2), axis=-1)
             signal_mask = np.where(epcb_signals >= 2)[0]
             if len(signal_mask)==0:
                 epcb_waveform = waveform[i_evt, i, channels_list, :]
@@ -2170,7 +2170,7 @@ def main():
         try:
             # check for flatlining channels
             flatlined = check_flatline(
-                max_values, threshold=5e2
+                max_values, threshold=3e2
             )
             # plotting flatlined channels for grafana
             plot_flatline_mask(
