@@ -1621,7 +1621,7 @@ def main():
 
     # search for any files in --input_path starting with args.name_conv and ending with '.FLOW.hdf5'
     all_files = [f for f in os.listdir(args.input_path) if f.startswith(args.file_syntax) and f.endswith('.FLOW.hdf5')]
-    all_files.sort()
+    all_files.sort()            # HERE BE DRAGONS
     n_available_files = len(all_files)
     print(f"Found {n_available_files} files in {args.input_path} starting with {args.file_syntax} and ending with .FLOW.hdf5")
     if n_available_files == 0:
@@ -1640,9 +1640,13 @@ def main():
     for i_file in range(args.start_run, args.start_run + args.nfiles, 1):
 
         # Construct the filename based on the input path and file index
-        filename = f'{args.input_path}{all_files[i_file]}'
+        # filename = f'{args.input_path}{all_files[i_file]}'
+        # HACK: Use start_run literally, instead of as an index into a (wrongly-)sorted list
+        # (this is OK for the nearline, which just runs on one file at a time)
+        filename = f'{args.input_path}{args.file_syntax}{i_file}.FLOW.hdf5'
         # just the file name, no path and cutting off .FLOW.hdf5
-        short_filename = all_files[i_file][:-10]
+        # short_filename = all_files[i_file][:-10]
+        short_filename = os.path.basename(filename)[:-10]
 
         # Skip if file does not exist
         if not os.path.exists(filename):
