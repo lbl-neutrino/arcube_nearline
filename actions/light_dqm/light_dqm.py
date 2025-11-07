@@ -2188,7 +2188,7 @@ def main():
             # checking for baseline fluctuations
             baselined, status = check_baseline(
                 prev_baselines, (bline_c, bline_l, bline_u),
-                units=args.units, threshold=500
+                units=args.units, threshold=900
             )
             #############################################################
             # WIP: plot using status to detail whether deviation within #
