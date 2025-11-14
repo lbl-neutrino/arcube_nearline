@@ -24,8 +24,10 @@ input_lrs_path=$data_root/$nearline_name/${relative_path%.INPUTS.txt}.FLOW_LE.hd
 #echo "Light file path: ${input_lrs_path}"
 
 output_rel_path=$data_root/$nearline_name/$stage/$(dirname "${relative_path}")
+log_rel_path=$log_root/$nearline_name/$stage/$(dirname "${relative_path}")
 #echo "output_rel_path = ${output_rel_path}"
 mkdir -p $output_rel_path
+mkdir -p $log_rel_path
 
 if [ ! -r "$inpath" ]; then
     echo "Error: Cannot read file '$inpath'"
@@ -43,12 +45,13 @@ while IFS= read -r filepath; do
         continue
     fi
     output_path=$output_rel_path/$(basename "${filepath%.FLOW.hdf5}")_$(basename "${relative_path%.INPUTS.txt}")_CLmatched.FLOW_LE.hdf5
+    log_path=$log_rel_path/$(basename "${filepath%.FLOW.hdf5}")_$(basename "${relative_path%.INPUTS.txt}")_CLmatched.FLOW_LE.log
 
     cp $filepath $output_path.tmp
     h5copy -i $input_lrs_path -o $output_path.tmp -s light -d light -f ref
     
     time h5flow -c "$workflow1" \
-    -i "$output_path.tmp" -o "$output_path.tmp" --compression gzip 2>&1 | tee "$logpath"
+    -i "$output_path.tmp" -o "$output_path.tmp" --compression gzip 2>&1 | tee "$log_path"
 
     mv "$output_path.tmp" "$output_path"
     
