@@ -1,5 +1,6 @@
 import json
 from datetime import datetime
+import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
@@ -18,6 +19,7 @@ def main(input_file, output_file):
     
     entries.sort(key=lambda x: x[0])
     timestamps, lifetimes, errors = zip(*entries)
+    matplotlib.rcParams['timezone'] = 'US/Central'
     
     plt.figure(figsize=(10,5))
     plt.errorbar(timestamps, lifetimes, yerr=errors, fmt='o-', ecolor='black', capsize=1)
@@ -37,7 +39,7 @@ def main(input_file, output_file):
     plt.xlabel("Timestamp [CDT]")
     plt.ylabel("Electron lifetime (µs)")
     plt.ylim(0,5e3)
-    plt.title("Electron lifetime time series last 10 points")
+    plt.title("Electron lifetime time series last 50 points")
     plt.grid(True)
     plt.tight_layout()
     plt.gca().xaxis.set_major_formatter(formatter)
