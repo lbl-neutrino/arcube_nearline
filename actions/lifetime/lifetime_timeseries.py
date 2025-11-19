@@ -38,7 +38,7 @@ def main(input_file, output_file):
     plt.errorbar(timestamps[-50:], lifetimes[-50:], yerr=errors[-50:], fmt='o-', ecolor='black', capsize=1)
     plt.xlabel("Timestamp [CDT]")
     plt.ylabel("Electron lifetime (µs)")
-    plt.ylim(0,5e3)
+    # plt.ylim(0,5e3)
     plt.title("Electron lifetime time series last 50 points")
     plt.grid(True)
     plt.tight_layout()
