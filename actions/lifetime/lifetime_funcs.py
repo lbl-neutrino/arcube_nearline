@@ -126,7 +126,7 @@ def langau_lifetime(nhits, dqdx, time_drifted, time_bins, dqdx_bins, nhits_bins,
         mpv_uncertainties[i] = mpv_uncertainty
 
     #Get Electron Lifetime
-    params, cov = curve_fit(ElectronLifetimeFunc, times[fit_points:-1], mpvs[fit_points:-1], 
+    params, cov = curve_fit(ElectronLifetimeFunc, times[fit_points:-1], mpvs[fit_points:-1], bounds = ([0, .0,], [np.inf, np.inf]), 
                             p0 = [np.max(mpvs), 2000], sigma=mpv_uncertainties[fit_points:-1], absolute_sigma=True)
 
     #Lifetime plotting
