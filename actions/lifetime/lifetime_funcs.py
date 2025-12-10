@@ -59,7 +59,7 @@ def langau_fit(hist, bin_centers):
     initial_guess = [mpv_guess, eta_guess,sigma_guess, A_guess] # Example values
 
     # Set lower and upper bounds for sigma, and other parameters
-    bounds = ([0, .1, 0, 0], [np.inf, np.inf,np.inf, np.inf])  # Limit sigma to a maximum of 5.0
+    bounds = ([0, .01, 0, 0], [np.inf, np.inf,np.inf, np.inf])  # Limit sigma to a maximum of 5.0
     
     try:
         # Perform the curve fit with bounds
