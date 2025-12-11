@@ -3,7 +3,7 @@ from datetime import datetime
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
-
+import plotly.express as px
 import argparse
 
 
@@ -45,6 +45,29 @@ def main(input_file, output_file):
     plt.gca().xaxis.set_major_formatter(formatter)
 
     plt.savefig(output_file+"_last.png")
+
+    #html file 
+    fig = px.scatter(
+        x=timestamps,
+        y=lifetimes,
+        error_y=errors,
+        title="Electron lifetime time series"
+    )
+    fig.update_traces(mode="markers")
+    
+    fig.update_layout(
+        xaxis_title="Timestamp [CDT]",
+        yaxis_title="Electron lifetime (µs)",
+        yaxis_range=[0, 10_000],  # same as 0 to 10e3
+        template="plotly_white",
+        width=1000,
+        height=500
+    )
+    
+    fig.update_xaxes(
+        tickformat="%m/%d/%Y<br>%H:%M CDT"  
+    )
+    fig.write_html(output_file+".html")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
