@@ -62,7 +62,7 @@ pip install PyPDF2
 
 # For lifetime time series:
 pip install flufl.lock
-
+pip install plotly
 cd "$basedir"
 
 confdir=$(realpath config)
