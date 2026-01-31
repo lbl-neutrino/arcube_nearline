@@ -1,0 +1,49 @@
+* Dumping metacat
+#+begin_example
+Apptainer> metacat query "files where core.run_type=neardet-2x2-lar-light and core.runs[any]>=60000" > all_light.txt
+Apptainer> wc -l all_light.txt
+12236 all_light.txt
+Apptainer> metacat query "files where core.run_type=neardet-2x2-lar-charge and core.runs[any]>=60000" > all_charge.txt
+Apptainer> wc -l all_charge.txt
+8375 all_charge.txt
+#+end_example
+
+* Data volumes
+#+begin_example
+Apptainer> metacat query -s "files where core.run_type=neardet-2x2-lar-light and core.runs[any]>=60000"
+Files:        12236
+Total size:   27186539316972 (27.187 TB)
+Apptainer> metacat query -s "files where core.run_type=neardet-2x2-lar-charge and core.runs[any]>=60000"
+Files:        8375
+Total size:   4704393710420 (4.704 TB)
+#+end_example
+
+* Volumes at NERSC
+#+begin_example
+dunepr@login23:LRS_run2$ du -hd0 .
+82T     .
+dunepr@login23:CRS.run2$ du -hd0 .
+21T     .
+#+end_example
+
+* Remember
+- [ ] Patch metadata before declaring
+- [X] Push the move_xyz_data.sh scripts to arcube_nearline
+
+* Workflow
+- At NERSC, generate list of fts3 submissions (data + metadata), dest = neighbor dir of declad dropbox
+- From duneopsgvpm, submit transfers
+- After transfers complete, run move_xyz_data.sh on duneopsgpvm01 to move/rename data and move/patch metadata
+- Can run catch_xyz_data.sh to run move_xyz_data.sh in a loop
+
+* TODO CHECK
+- [ ] Duplication of charge subruns in runs db for 60011, 23, 125
+- [ ] Files that aren't in runs db
+
+* Listing Rucio DIDs
+#+begin_src bash
+datasets=($(rucio did list neardet-2x2-lar-light:* | grep DATASET | awk '{print $2}' | grep lar-light_60))
+for dset in "${datasets[@]}"; do
+  rucio list-files "$dset" | grep "ad:"
+done > rucio_light.txt
+#+end_src
