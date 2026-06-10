@@ -1,7 +1,7 @@
 # source me
 
 if [[ "$LMOD_SYSTEM_NAME" == "perlmutter" ]]; then
-    module load python/3.11
+    module load python/3.14
 fi
 
 source _install/nearline.venv/bin/activate

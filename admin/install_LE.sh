@@ -3,7 +3,7 @@
 set -o errexit
 
 if [[ "$LMOD_SYSTEM_NAME" == "perlmutter" ]]; then
-    module load python/3.11
+    module load python/3.14
 fi
 
 basedir=$PWD
