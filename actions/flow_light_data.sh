@@ -16,8 +16,11 @@ get_outpath() {
     ext=$2
 
     indir=$(dirname "$inpath")
+    echo "indir is $indir"
     reldir=$(echo "$indir" | sed "s|^$inbase/||")
+    echo "reldir is $reldir"
     inbase_name=$(basename "$inpath")
+    echo "inbase_name is $inbase_name"
     if [[ "$inbase_name" =~ ^mpd_(.+)_rctl_([0-9]+)_p([0-9]+)\.data$ ]]; then
         config="${BASH_REMATCH[1]}"
         run=$(printf "%06d" "${BASH_REMATCH[2]}")
