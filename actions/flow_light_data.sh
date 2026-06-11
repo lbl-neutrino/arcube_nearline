@@ -8,7 +8,8 @@ inname=${ARCUBE_NEARLINE_DATA_DIR_NAME:-LRS_run3}
 inbase=$data_root/$inname
 
 inpath=$1; shift
-outstamp=$(TZ=America/Chicago date --date=@$(jq '.metadata."core.start_time"' $inpath.json) +%Y_%m_%d_%H_%S)
+#outstamp=$(TZ=America/Chicago date --date=@$(jq '.metadata."core.start_time"' $inpath.json) +%Y_%m_%d_%H_%S)
+outstamp=$(TZ=America/Chicago date +%Y_%m_%d_%H_%S)
 
 get_outpath() {
     outbase=$1
