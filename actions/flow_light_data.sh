@@ -53,14 +53,13 @@ h5flow -c "$workflow" -i "$inpath" -o "$flowpath.tmp" 2>&1 | tee "$logpath"
 outstamp=$(
 FLOWPATH="$flowpath" python3 - <<'EOF'
 import h5py, os
-from datetime import datetime
-import pytz
+from datetime import datetime, timezone, timedelta
 
-chicago = pytz.timezone("America/Chicago")
+cst = timezone(timedelta(hours=-6))
 
 with h5py.File(os.environ["FLOWPATH"]+".tmp", "r") as f:
     ts = f['light/events/data']['utime_ms'][0, 0] * 1e-3  # ms → s
-    print(datetime.fromtimestamp(ts, tz=chicago).strftime("%Y_%m_%d_%H_%M_%S"))
+    print(f"{datetime.fromtimestamp(ts, tz=cst).strftime('%Y_%m_%d_%H_%M_%S')}_CST")
 EOF
 )
 
