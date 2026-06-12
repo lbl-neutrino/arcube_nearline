@@ -8,8 +8,7 @@ inname=${ARCUBE_NEARLINE_DATA_DIR_NAME:-LRS_run3}
 inbase=$data_root/$inname
 
 inpath=$1; shift
-#outstamp=$(TZ=America/Chicago date --date=@$(jq '.metadata."core.start_time"' $inpath.json) +%Y_%m_%d_%H_%S)
-outstamp=$(TZ=America/Chicago date +%Y_%m_%d_%H_%S)
+outstamp="unknown_time"
 
 get_outpath() {
     outbase=$1
@@ -50,4 +49,26 @@ rm -f "$flowpath"
 set -o errexit
 set -o pipefail
 h5flow -c "$workflow" -i "$inpath" -o "$flowpath.tmp" 2>&1 | tee "$logpath"
-mv "$flowpath.tmp" "$flowpath"
+
+outstamp=$(
+FLOWPATH="$flowpath" python3 - <<'EOF'
+import h5py, os
+from datetime import datetime
+import pytz
+
+chicago = pytz.timezone("America/Chicago")
+
+with h5py.File(os.environ["FLOWPATH"], "r") as f: # + ".tmp"
+    ts = f['light/events/data']['utime_ms'][0, 0] * 1e-3  # ms → s
+    print(datetime.fromtimestamp(ts, tz=chicago).strftime("%Y_%m_%d_%H_%M_%S"))
+EOF
+)
+
+if [[ -z "$outstamp" ]]; then
+    echo "WARNING: failed to extract timestamp from $flowpath.tmp" >&2
+    outstamp="unknown_time"
+fi
+
+flowpath_timestamped=$(get_outpath "$data_outbase" FLOW.hdf5)
+
+mv "$flowpath.tmp" "$flowpath_timestamped"
