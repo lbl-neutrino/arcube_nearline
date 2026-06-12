@@ -58,7 +58,7 @@ import pytz
 
 chicago = pytz.timezone("America/Chicago")
 
-with h5py.File(os.environ["FLOWPATH"], "r") as f: # + ".tmp"
+with h5py.File(os.environ["FLOWPATH"]+".tmp", "r") as f:
     ts = f['light/events/data']['utime_ms'][0, 0] * 1e-3  # ms → s
     print(datetime.fromtimestamp(ts, tz=chicago).strftime("%Y_%m_%d_%H_%M_%S"))
 EOF
