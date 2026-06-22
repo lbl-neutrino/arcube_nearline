@@ -1218,7 +1218,8 @@ def main():
         # filename = f'{args.input_path}{all_files[i_file]}'
         # HACK: Use start_run literally, instead of as an index into a (wrongly-)sorted list
         # (this is OK for the nearline, which just runs on one file at a time)
-        filename = f'{args.input_path}{args.file_syntax}{i_file}.FLOW.hdf5'
+        #filename = f'{args.input_path}{args.file_syntax}{i_file}.FLOW.hdf5'
+        filename = f'{args.input_path}{args.file_syntax}{i_file:05d}.FLOW.hdf5'
         # just the file name, no path and cutting off .FLOW.hdf5
         # short_filename = all_files[i_file][:-10]
         short_filename = os.path.basename(filename)[:-10]
@@ -1582,7 +1583,7 @@ def main():
         print('m')
 
         # Build args_list dynamically, avoiding None entries
-        args_list = [f"File index: {i_file}"]
+        args_list = [f"File index: {i_file:05d}"]
 
         # Add formatted filename lines
         args_list.extend([line for line in filename_lines if line])
@@ -1610,7 +1611,7 @@ def main():
 
         # remove None
         args_list = [line for line in args_list if line is not None]
-        args_pdf = os.path.join(args.output_dir, f"args_list_{i_file}.pdf")
+        args_pdf = os.path.join(args.output_dir, f"args_list_{i_file:05d}.pdf")
 
         with PdfPages(args_pdf) as pdf:
             fig, ax = plt.subplots(figsize=(16, 6))
@@ -1656,7 +1657,7 @@ def main():
 
         # timing for file processing
         print(f"Processing completed for file: {filename}")
-        print(f"Time taken for file {i_file}: {time.time() - file_time:.2f} seconds")
+        print(f"Time taken for file {i_file:05d}: {time.time() - file_time:.2f} seconds")
         file_time = time.time()
 
     if not proc_files:
