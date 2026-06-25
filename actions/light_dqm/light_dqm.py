@@ -45,6 +45,7 @@ import glob
 import argparse
 import traceback
 from ascii import header, footer
+import textwrap
 
 import json
 import h5py
@@ -1552,41 +1553,54 @@ def main():
         input_path = args.input_path
         print('c')
         print(f"Input path: {input_path}, length: {len(input_path)}")
-        while len(input_path) > max_line_length:
-            split_idx = input_path.rfind('/', 1, max_line_length)
-            if split_idx <= 0:
-                split_idx = max_line_length
-            input_path_lines.append(input_path[:split_idx])
-            input_path = input_path[split_idx:].lstrip('/')
-            print('f')
-            input_path = input_path[split_idx:]
-        input_path_lines.append(input_path)
-        print('g')
-        input_path_str = "--input_path \\\n" + "\n".join("    " + l for l in input_path_lines)
+        inputpath_wrapped = textwrap.wrap(
+            input_path,
+            width=max_line_length,
+            break_long_words=True,
+            break_on_hyphens=False
+        )
+        #while len(input_path) > max_line_length:
+        #    split_idx = input_path.rfind('/', 1, max_line_length)
+        #    if split_idx <= 0:
+        #        split_idx = max_line_length
+        #    input_path_lines.append(input_path[:split_idx])
+        #    input_path = input_path[split_idx:].lstrip('/')
+        #    print('f')
+        #    input_path = input_path[split_idx:]
+        #input_path_lines.append(input_path)
+        #print('g')
+        #input_path_str = "--input_path \\\n" + "\n".join("    " + l for l in input_path_lines)
         print('h')
         # split filename at '/' closest to the centre
         filename_lines = []
         max_line_length = 60
         filename_str = filename
         print('i')
-        while len(filename_str) > max_line_length:
-            split_idx = filename_str.rfind('/', 0, max_line_length)
-            print('j')
-            if split_idx == -1:
-                split_idx = max_line_length
-                print('k')
-            filename_lines.append(filename_str[:split_idx])
-            filename_str = filename_str[split_idx:]
-            print('l')
-        filename_lines.append(filename_str)
-        filename_formatted = "\n".join("    " + l for l in filename_lines)
+        filename_wrapped = textwrap.wrap(
+            filename,
+            width=max_line_length,
+            break_long_words=True,
+            break_on_hyphens=False
+        )
+        #while len(filename_str) > max_line_length:
+        #    split_idx = filename_str.rfind('/', 0, max_line_length)
+        #    print('j')
+        #    if split_idx == -1:
+        #        split_idx = max_line_length
+        #        print('k')
+        #    filename_lines.append(filename_str[:split_idx])
+        #    filename_str = filename_str[split_idx:]
+        #    print('l')
+        #filename_lines.append(filename_str)
+        #filename_formatted = "\n".join("    " + l for l in filename_lines)
         print('m')
 
         # Build args_list dynamically, avoiding None entries
         args_list = [f"File index: {i_file:05d}"]
 
         # Add formatted filename lines
-        args_list.extend([line for line in filename_lines if line])
+        #args_list.extend([line for line in filename_lines if line])
+        args_list.extend(filename_wrapped)
 
         args_list.append("")
         args_list.append(f"Data start timestamp (CT):   {start_central}")
