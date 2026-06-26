@@ -581,7 +581,7 @@ def plot_sum_waveform(waveform, units='ADC16', output_name='sum_waveform.pdf'):
     axes[-1, 0].set_xlabel('Samples/ time (ticks)')
     axes[-1, 1].set_xlabel('Samples/ time (ticks)')
     plt.tight_layout()
-    plt.show()
+    #plt.show()
     # save as pdf
     output_pdf = f"{args.tmp_dir}/{output_name}"
     with PdfPages(output_pdf) as pdf:
@@ -930,7 +930,7 @@ def plot_noise_spectra_epcb(
 
     axes[-1].set_xlabel('Frequency (MHz)')
     plt.tight_layout()
-    plt.show()
+    #plt.show()
     # save as pdf
     output_pdf = f"{args.tmp_dir}/{output_name}"
     with PdfPages(output_pdf) as pdf:
@@ -992,7 +992,7 @@ def plot_noise_spectra_channels(
 
     axes[-1].set_xlabel('Frequency (MHz)')
     plt.tight_layout()
-    plt.show()
+    #plt.show()
     # save as pdf
     output_pdf = f"{args.tmp_dir}/{output_name}"
     with PdfPages(output_pdf) as pdf:
