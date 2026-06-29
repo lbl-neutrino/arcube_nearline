@@ -20,6 +20,7 @@ file_syntax=$(basename "$inpath" .FLOW.hdf5 | sed 's/[0-9]\+$//')
 
 # Extract the same final numbers we stripped out above (welcome to regex hell)
 start_run=$(basename "$inpath" .FLOW.hdf5 | sed -n 's/.*[^0-9]\([0-9]\+\)$/\1/p')
+echo "Starting run with p$start_run"
 
 get_outpath() {
     outbase=$1
