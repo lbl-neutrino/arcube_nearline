@@ -1203,10 +1203,11 @@ def main():
     if n_available_files == 0:
         print("No files found. Exiting.")
         sys.exit(1)
-    if args.start_run >= n_available_files:
-        print(f"Start file index {args.start_run} is out of range. There are only {n_available_files} files available. Exiting.")
-        sys.exit(1)
-    if args.start_run + args.nfiles > n_available_files:
+    #if args.start_run >= n_available_files:
+    #    print(f"Start file index {args.start_run} is out of range. There are only {n_available_files} files available. Exiting.")
+    #    sys.exit(1)
+    #if args.start_run + args.nfiles > n_available_files:
+    if args.nfiles > n_available_files:
         args.nfiles = n_available_files - args.start_run
         print(f"Adjusting number of files to process to {args.nfiles} to avoid going out of range.")
 
