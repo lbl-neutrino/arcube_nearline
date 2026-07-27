@@ -1,0 +1,11 @@
+#!/bin/bash
+
+echo "OS Release"
+
+cat /etc/os-release
+
+did_pfn_rse=`$JUSTIN_PATH/justin-get-file`
+
+echo "This is what we get from justin-get-file:"
+
+echo $did_pfn_rse
