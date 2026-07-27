@@ -22,8 +22,9 @@ source /cvmfs/dune.opensciencegrid.org/spack/v1.1.1/setup-env.sh
 # FIXME: Use cache from RCDS
 spack env activate dunesw-10_21_01d00-justin-01_06_01-prototype
 
+ND_NEARLINE_TAG=${ND_NEARLINE_TAG:-test}
 input_fname=$(echo "$did" | cut -f2 -d:)
-output_fname=$(basename "$input_fname" .data).test.FLOW.hdf5
+output_fname=$(basename "$input_fname" .data).${ND_NEARLINE_TAG}.FLOW.hdf5
 
 echo "BEARER_TOKEN_FILE is $BEARER_TOKEN_FILE"
 echo "X509_USER_PROXY is $X509_USER_PROXY"
@@ -59,3 +60,5 @@ workflow='yamls/proto_nd_flow/workflows/light/light_event_building_mpd.yaml'
 )
 
 python dump_metadata.light_flow.py "${input_fname}.json" "${output_fname}"
+
+echo "$did" > justin-processed-dids.txt
