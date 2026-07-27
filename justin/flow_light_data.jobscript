@@ -6,6 +6,11 @@ cat /etc/os-release
 
 did_pfn_rse=$("$JUSTIN_PATH/justin-get-file")
 
+if [[ $? != 0 ]]; then
+    echo "Got nothing from justin-get-file; bailing"
+    exit
+fi
+
 echo "This is what we get from justin-get-file:"
 
 echo "$did_pfn_rse"
