@@ -35,6 +35,11 @@ if [[ -n "$ND_NEARLINE_RUCIO_ACCOUNT" ]]; then
     export RUCIO_ACCOUNT=$ND_NEARLINE_RUCIO_ACCOUNT
 fi
 
+if [[ -n "$ND_NEARLINE_HACK_RUCIO_CFG" ]]; then
+    sed -i 's/auth_type = oidc/#auth_type = oidc/' $RUCIO_HOME/etc/rucio.cfg
+    sed -i 's/#auth_type = x509_proxy/auth_type = x509_proxy/' $RUCIO_HOME/etc/rucio.cfg
+fi
+
 echo "BEARER_TOKEN_FILE is $BEARER_TOKEN_FILE"
 echo "X509_USER_PROXY is $X509_USER_PROXY"
 echo "RUCIO_ACCOUNT is $RUCIO_ACCOUNT"
