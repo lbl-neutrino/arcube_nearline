@@ -20,4 +20,5 @@ output_fname=$(basename "$input_fname" .data).test.FLOW.hdf5
 
 metacat file show -mj "$did" > "${input_fname}.json"
 
+justin get-token
 rucio download "$did"
