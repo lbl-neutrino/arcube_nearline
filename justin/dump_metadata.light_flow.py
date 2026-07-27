@@ -6,6 +6,7 @@ from pathlib import Path
 from zlib import adler32
 
 RETENTION_CLASS = 'test'        # change to 'physics' when ready
+NAMESPACE = 'usertests'         # change to 'neardet-2x2-lar-light' when ready
 
 
 def get_checksum(datapath: Path, chunksize=1_000_000_000):
@@ -24,7 +25,7 @@ def dump(json_infile: Path, data_outfile: Path):
 
     result = {
         'name': data_outfile.name,
-        'namespace': 'neardet-2x2-lar-light',
+        'namespace': NAMESPACE,
         'checksums': {'adler32': get_checksum(data_outfile)},
         'size': data_outfile.stat().st_size,
     }
