@@ -50,7 +50,8 @@ python -m venv nearline.venv
 source nearline.venv/bin/activate
 pip install --no-index --find-links=$pydir/wheels -r $pydir/requirements.txt
 
-workflow='yamls/proto_nd_flow/workflows/light/light_event_building_mpd_Run2.yaml'
+# FIXME: Switch to Run3 yaml
+workflow='yamls/proto_nd_flow/workflows/light/light_event_building_mpd.yaml'
 
 (
   cd ndlar_flow || exit
