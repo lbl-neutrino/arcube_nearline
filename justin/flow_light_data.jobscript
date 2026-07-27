@@ -18,7 +18,10 @@ spack env activate dunesw-10_21_01d00-justin-01_06_01-prototype
 input_fname=$(echo "$did" | cut -f2 -d:)
 output_fname=$(basename "$input_fname" .data).test.FLOW.hdf5
 
+echo "BEARER_TOKEN_FILE is $BEARER_TOKEN_FILE"
+echo "X509_USER_PROXY is $X509_USER_PROXY"
+echo "RUCIO_ACCOUNT is $RUCIO_ACCOUNT"
+
 metacat file show -mj "$did" > "${input_fname}.json"
 
-justin get-token
 rucio download "$did"
