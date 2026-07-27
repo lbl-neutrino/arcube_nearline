@@ -4,8 +4,20 @@ echo "OS Release"
 
 cat /etc/os-release
 
-did_pfn_rse=`$JUSTIN_PATH/justin-get-file`
+did_pfn_rse=$("$JUSTIN_PATH/justin-get-file")
 
 echo "This is what we get from justin-get-file:"
 
-echo $did_pfn_rse
+echo "$did_pfn_rse"
+did=$(echo "$did_pfn_rse" | cut -f1 -d' ')
+# pfn=$(echo "$did_pfn_rse" | cut -f2 -d' ')
+
+source /cvmfs/dune.opensciencegrid.org/spack/v1.1.1/setup-env.sh
+spack env activate dunesw-10_21_01d00-justin-01_06_01-prototype
+
+input_fname=$(echo "$did" | cut -f2 -d:)
+output_fname=$(basename "$input_fname" .data).test.FLOW.hdf5
+
+metacat file show -mj "$did" > "${input_fname}.json"
+
+rucio download "$did"
