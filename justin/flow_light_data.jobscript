@@ -52,6 +52,9 @@ pip install --no-index --find-links=$pydir/wheels -r $pydir/requirements.txt
 
 workflow='yamls/proto_nd_flow/workflows/light/light_event_building_mpd_Run2.yaml'
 
-h5flow -c "$workflow" -i "$input_fname" -o "$output_fname"
+(
+  cd ndlar_flow || exit
+  h5flow -c "$workflow" -i "../$input_fname" -o "../$output_fname"
+)
 
-./dump_metadata.light_flow.py "${input_fname}.json" "${output_fname}"
+python dump_metadata.light_flow.py "${input_fname}.json" "${output_fname}"
