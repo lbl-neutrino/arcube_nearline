@@ -43,7 +43,7 @@ wget https://raw.githubusercontent.com/lbl-neutrino/arcube_nearline/refs/heads/j
 echo pwd; pwd
 echo ls; ls
 
-despacktivate
+spack env deactivate
 spack load python@3.14.3/mkwcary
 python -m venv nearline.venv
 source nearline.venv/bin/activate
