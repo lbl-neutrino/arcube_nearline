@@ -56,7 +56,7 @@ def dump(json_infile: Path, data_outfile: Path):
 
     json_outfile = data_outfile.with_suffix(data_outfile.suffix + '.json')
     with open(json_outfile, 'w') as f:
-        json.dump(result, f)
+        json.dump(result, f, indent=4)
 
 
 def main():
