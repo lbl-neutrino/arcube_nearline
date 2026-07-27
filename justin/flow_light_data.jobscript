@@ -13,6 +13,12 @@ did=$(echo "$did_pfn_rse" | cut -f1 -d' ')
 # pfn=$(echo "$did_pfn_rse" | cut -f2 -d' ')
 
 source /cvmfs/dune.opensciencegrid.org/spack/v1.1.1/setup-env.sh
+
+# if [[ -n "$ND_NEARLINE_SPACK_CACHE" ]];
+#    mkdir -p /tmp/cache
+#    cp -r 
+# fi
+
 spack env activate dunesw-10_21_01d00-justin-01_06_01-prototype
 
 input_fname=$(echo "$did" | cut -f2 -d:)
@@ -24,4 +30,12 @@ echo "RUCIO_ACCOUNT is $RUCIO_ACCOUNT"
 
 metacat file show -mj "$did" > "${input_fname}.json"
 
-rucio download "$did"
+rucio download --dir . "$did"
+
+tar xf /cvmfs/fifeuser1.opensciencegrid.org/sw/dune/e1f0176a8e8903d940532bd461a20a36f688ab06
+
+# FIXME: Add to tarball
+wget https://raw.githubusercontent.com/lbl-neutrino/arcube_nearline/refs/heads/justin/justin/dump_metadata.light_flow.py
+
+echo pwd; pwd
+echo ls; ls
