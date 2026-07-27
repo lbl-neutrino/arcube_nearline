@@ -26,9 +26,31 @@ ND_NEARLINE_TAG=${ND_NEARLINE_TAG:-test}
 input_fname=$(echo "$did" | cut -f2 -d:)
 output_fname=$(basename "$input_fname" .data).${ND_NEARLINE_TAG}.FLOW.hdf5
 
+if [[ -n "$ND_NEARLINE_RUCIO_ACCOUNT" ]]; then
+    export RUCIO_ACCOUNT=$ND_NEARLINE_RUCIO_ACCOUNT
+fi
+
 echo "BEARER_TOKEN_FILE is $BEARER_TOKEN_FILE"
 echo "X509_USER_PROXY is $X509_USER_PROXY"
 echo "RUCIO_ACCOUNT is $RUCIO_ACCOUNT"
+
+if [[ -n "$RUCIO_CONFIG" ]]; then
+    echo "RUCIO_CONFIG is set: $RUCIO_CONFIG"
+    echo "Contents:"
+    cat "$RUCIO_CONFIG"
+fi
+
+if [[ -n "$RUCIO_HOME" ]]; then
+    echo "RUCIO_HOME is set: $RUCIO_HOME"
+    echo "Listing:"
+    ls -lR "$RUCIO_HOME"
+
+    if [[ -e "$RUCIO_HOME/etc/rucio.cfg" ]]; then
+        echo "Found $RUCIO_HOME/etc/rucio.cfg"
+        echo "Contents:"
+        cat "$RUCIO_HOME/etc/rucio.cfg"
+    fi
+fi
 
 metacat file show -mj "$did" > "${input_fname}.json"
 
