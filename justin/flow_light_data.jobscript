@@ -19,6 +19,7 @@ source /cvmfs/dune.opensciencegrid.org/spack/v1.1.1/setup-env.sh
 #    cp -r 
 # fi
 
+# FIXME: Use cache from RCDS
 spack env activate dunesw-10_21_01d00-justin-01_06_01-prototype
 
 input_fname=$(echo "$did" | cut -f2 -d:)
@@ -49,4 +50,8 @@ python -m venv nearline.venv
 source nearline.venv/bin/activate
 pip install --no-index --find-links=$pydir/wheels -r $pydir/requirements.txt
 
-h5flow --help
+workflow='yamls/proto_nd_flow/workflows/light/light_event_building_mpd_Run2.yaml'
+
+h5flow -c "$workflow" -i "$input_fname" -o "$output_fname"
+
+./dump_metadata.light_flow.py "${input_fname}.json" "${output_fname}"
