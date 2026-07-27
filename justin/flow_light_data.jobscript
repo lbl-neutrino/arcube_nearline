@@ -35,9 +35,13 @@ if [[ -n "$ND_NEARLINE_RUCIO_ACCOUNT" ]]; then
     export RUCIO_ACCOUNT=$ND_NEARLINE_RUCIO_ACCOUNT
 fi
 
-if [[ -n "$ND_NEARLINE_HACK_RUCIO_CFG" ]]; then
+if [[ "$ND_NEARLINE_HACK_RUCIO_CFG" == "1" ]]; then
     sed -i 's/auth_type = oidc/#auth_type = oidc/' $RUCIO_HOME/etc/rucio.cfg
     sed -i 's/#auth_type = x509_proxy/auth_type = x509_proxy/' $RUCIO_HOME/etc/rucio.cfg
+fi
+
+if [[ "$ND_NEARLINE_HACK_RUCIO_CFG" == "2" ]]; then
+    echo "oidc_scope = openid profile email org.cilogon.userinfo wlcg.capabilityset:/duneana wlcg.groups:/dune" >> $RUCIO_HOME/etc/rucio.cfg
 fi
 
 echo "BEARER_TOKEN_FILE is $BEARER_TOKEN_FILE"
