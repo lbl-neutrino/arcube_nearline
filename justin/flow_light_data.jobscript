@@ -1,5 +1,16 @@
 #!/bin/bash
 
+## Example command to submit this job:
+# justin simple-workflow \
+#     --wall-seconds 1200 \
+#     --output-pattern '*.hdf5' \
+#     --scope usertests \
+#     --lifetime-days 7 \
+#     --image fnal-wn-el9:9.7 \
+#     --mql "files from neardet-2x2-lar-light:neardet-2x2-lar-light_50017 limit 1" \
+#     --env ND_NEARLINE_TAG=test_simple \
+#     --jobscript flow_light_data.jobscript
+
 did_pfn_rse=$("$JUSTIN_PATH/justin-get-file")
 
 if [[ $? != 0 ]]; then
