@@ -1,9 +1,5 @@
 #!/bin/bash
 
-echo "OS Release"
-
-cat /etc/os-release
-
 did_pfn_rse=$("$JUSTIN_PATH/justin-get-file")
 
 if [[ $? != 0 ]]; then
@@ -11,81 +7,38 @@ if [[ $? != 0 ]]; then
     exit
 fi
 
-echo "This is what we get from justin-get-file:"
-
-echo "$did_pfn_rse"
 did=$(echo "$did_pfn_rse" | cut -f1 -d' ')
-# pfn=$(echo "$did_pfn_rse" | cut -f2 -d' ')
+pfn=$(echo "$did_pfn_rse" | cut -f2 -d' ')
+
+tar_spack=/cvmfs/fifeuser3.opensciencegrid.org/sw/dune/8c80e4bba3a3e4f49e84c980d0f9054a2add653c/spack_cache.tar
+tar_venv=/cvmfs/fifeuser3.opensciencegrid.org/sw/dune/8c80e4bba3a3e4f49e84c980d0f9054a2add653c/nearline_venv.tar
+tar_scripts=/cvmfs/fifeuser3.opensciencegrid.org/sw/dune/8c80e4bba3a3e4f49e84c980d0f9054a2add653c/arcube_nearline.tar
+dir_flow=/cvmfs/fifeuser1.opensciencegrid.org/sw/dune/e1f0176a8e8903d940532bd461a20a36f688ab06/ndlar_flow
+
+tar xf "$tar_spack"             # creates spack_cache
+tar xf "$tar_venv"              # creates nearline.venv
+tar xf "$tar_scripts"           # creates arcube_nearline
+cp -r "$dir_flow" .             # creates ndlar_flow
 
 source /cvmfs/dune.opensciencegrid.org/spack/v1.1.1/setup-env.sh
-
-# if [[ -n "$ND_NEARLINE_SPACK_CACHE" ]];
-#    mkdir -p /tmp/cache
-#    cp -r 
-# fi
-
-# FIXME: Use cache from RCDS
+export SPACK_USER_CACHE_DIR=$PWD/spack_cache
+date
 spack env activate dunesw-10_21_01d00-justin-01_06_01-prototype
+date
 
 ND_NEARLINE_TAG=${ND_NEARLINE_TAG:-test}
 input_fname=$(echo "$did" | cut -f2 -d:)
 output_fname=$(basename "$input_fname" .data).${ND_NEARLINE_TAG}.FLOW.hdf5
 
-if [[ -n "$ND_NEARLINE_RUCIO_ACCOUNT" ]]; then
-    export RUCIO_ACCOUNT=$ND_NEARLINE_RUCIO_ACCOUNT
-fi
-
-if [[ "$ND_NEARLINE_HACK_RUCIO_CFG" == "1" ]]; then
-    sed -i 's/auth_type = oidc/#auth_type = oidc/' $RUCIO_HOME/etc/rucio.cfg
-    sed -i 's/#auth_type = x509_proxy/auth_type = x509_proxy/' $RUCIO_HOME/etc/rucio.cfg
-fi
-
-if [[ "$ND_NEARLINE_HACK_RUCIO_CFG" == "2" ]]; then
-    echo "oidc_scope = openid profile email org.cilogon.userinfo wlcg.capabilityset:/duneana wlcg.groups:/dune" >> $RUCIO_HOME/etc/rucio.cfg
-fi
-
-echo "BEARER_TOKEN_FILE is $BEARER_TOKEN_FILE"
-echo "X509_USER_PROXY is $X509_USER_PROXY"
-echo "RUCIO_ACCOUNT is $RUCIO_ACCOUNT"
-
-if [[ -n "$RUCIO_CONFIG" ]]; then
-    echo "RUCIO_CONFIG is set: $RUCIO_CONFIG"
-    echo "Contents:"
-    cat "$RUCIO_CONFIG"
-fi
-
-if [[ -n "$RUCIO_HOME" ]]; then
-    echo "RUCIO_HOME is set: $RUCIO_HOME"
-    echo "Listing:"
-    ls -lR "$RUCIO_HOME"
-
-    if [[ -e "$RUCIO_HOME/etc/rucio.cfg" ]]; then
-        echo "Found $RUCIO_HOME/etc/rucio.cfg"
-        echo "Contents:"
-        cat "$RUCIO_HOME/etc/rucio.cfg"
-    fi
-fi
-
+ifdh cp "$pfn" .
 metacat file show -mj "$did" > "${input_fname}.json"
 
-rucio download "$did"
-mv neardet-2x2-lar-light/* .
-rmdir neardet-2x2-lar-light
-
-pydir=/cvmfs/fifeuser1.opensciencegrid.org/sw/dune/e1f0176a8e8903d940532bd461a20a36f688ab06
-cp -r $pydir/ndlar_flow .
-
-# FIXME: Add to tarball
-wget https://raw.githubusercontent.com/lbl-neutrino/arcube_nearline/refs/heads/justin/justin/dump_metadata.light_flow.py
-
-echo pwd; pwd
-echo ls; ls
-
+date
 spack env deactivate
+date
 spack load python@3.14.3/mkwcary
-python -m venv nearline.venv
+date
 source nearline.venv/bin/activate
-pip install --no-index --find-links=$pydir/wheels -r $pydir/requirements.txt
 
 # FIXME: Switch to Run3 yaml
 workflow='yamls/proto_nd_flow/workflows/light/light_event_building_mpd.yaml'
@@ -95,6 +48,7 @@ workflow='yamls/proto_nd_flow/workflows/light/light_event_building_mpd.yaml'
   h5flow -c "$workflow" -i "../$input_fname" -o "../$output_fname"
 )
 
-python dump_metadata.light_flow.py "${input_fname}.json" "${output_fname}"
+python arcube_nearline/justin/dump_metadata.light_flow.py \
+    "${input_fname}.json" "${output_fname}"
 
 echo "$did" > justin-processed-dids.txt
