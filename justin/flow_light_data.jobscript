@@ -21,8 +21,9 @@ tar xf "$tar_scripts"           # creates arcube_nearline
 cp -r "$dir_flow" .             # creates ndlar_flow
 
 source /cvmfs/dune.opensciencegrid.org/spack/v1.1.1/setup-env.sh
-export SPACK_USER_CACHE_DIR=$PWD/spack_cache
-date
+export SPACK_USER_CACHE_PATH=$PWD/spack_cache
+ls $SPACK_USER_CACHE_PATH
+date; echo activate
 spack env activate dunesw-10_21_01d00-justin-01_06_01-prototype
 date
 
@@ -33,11 +34,11 @@ output_fname=$(basename "$input_fname" .data).${ND_NEARLINE_TAG}.FLOW.hdf5
 ifdh cp "$pfn" .
 metacat file show -mj "$did" > "${input_fname}.json"
 
-date
+date; echo deactivate
 spack env deactivate
-date
+date; echo load
 spack load python@3.14.3/mkwcary
-date
+date; echo source
 source nearline.venv/bin/activate
 
 # FIXME: Switch to Run3 yaml
