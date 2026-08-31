@@ -1,11 +1,11 @@
 #!/bin/bash
 #
 # Sets up the "lrs_nearline" screen session with 5 windows:
-#   0: flow_light_data watcher
-#   1: light_dqm watcher
-#   2-4: rlaunch rapidfire workers
+#   1: flow_light_data watcher
+#   2: light_dqm watcher
+#   3-5: rlaunch rapidfire workers
 #
-# Usage: ./start_lrs_nearline.sh
+# Usage: ./start_lrs_nearline_NERSC.sh
 # Then attach with: screen -r lrs_nearline
 
 set -euo pipefail
@@ -30,22 +30,23 @@ send() {
     screen -S "$SESSION" -p "$win" -X stuff "${cmd}$(printf \\r)"
 }
 
-# --- Window 1 (default wondow on NERSC): flow_light_data watcher ---
+# --- Window 1 (default window on NERSC): flow_light_data watcher ---
 send 1 "echo 'Starting flow_light_data watcher...'"
 send 1 "cd ${BASE_DIR}"
 send 1 "source admin/load.sh"
-send 1 "./watcher.py --ext data --path /global/cfs/cdirs/dune/www/data/2x2/LRS_run3/warm_commission actions/flow_light_data.sh"
+send 1 "./watcher.py --ext data --path /global/cfs/cdirs/dune/www/data/2x2/LRS_run3/cold_commission actions/flow_light_data.sh"
 
-# --- Window 0: light_dqm watcher ---
-screen -S "$SESSION" -X screen   # create window 0
-send 0 "echo 'Starting light_dqm watcher...'"
-send 0 "cd ${BASE_DIR}"
-send 0 "source admin/load.sh"
-send 0 "./watcher.py --path /global/cfs/cdirs/dune/www/data/2x2/nearline_run3/flowed_light actions/light_dqm.sh"
+# --- Window 2: light_dqm watcher ---
+screen -S "$SESSION" -X screen 2   # create window 2
+send 2 "echo 'Starting light_dqm watcher...'"
+send 2 "cd ${BASE_DIR}"
+send 2 "source admin/load.sh"
+send 2 "./watcher.py --path /global/cfs/cdirs/dune/www/data/2x2/nearline_run3/flowed_light actions/light_dqm.sh"
 
-# --- Windows 2, 3, 4: rlaunch rapidfire workers ---
-for i in 2 3 4; do
-    screen -S "$SESSION" -X screen   # create new window
+
+# --- Windows 3, 4, 5: rlaunch rapidfire workers ---
+for i in 3 4 5; do
+    screen -S "$SESSION" -X screen "$i"  # create new window
     send "$i" "echo 'Starting rlaunch rapidfire worker in window $i...'"
     send "$i" "cd ${BASE_DIR}"
     send "$i" "source admin/load.sh"
