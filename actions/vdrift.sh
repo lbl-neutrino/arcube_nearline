@@ -8,9 +8,6 @@ inbase=$data_root/$nearline_name/flowed_charge
 
 inpath=$1; shift
 
-# Detector option of the flow vdrift scripts; selects LArData.yaml for the calibrated v_drift
-detector=2x2
-
 get_outpath() {
     outbase=$1
     ext=$2
@@ -36,5 +33,5 @@ fi
 
 mkdir -p "$(dirname "$logpath")" "$(dirname "$jsonpath")" "$(dirname "$globalplotpath")"
 
-python v_drift.py --input_file "$inpath" --output_file_json "$jsonpath" --detector "$detector" 2>&1 | tee "$logpath"
-python vdrift_timeseries.py --input_file "$jsonpath" --output_file "$globalplotpath" --detector "$detector" 2>&1 | tee -a "$logpath"
+python v_drift.py --input_file "$inpath" --output_file_json "$jsonpath" 2>&1 | tee "$logpath"
+python vdrift_timeseries.py --input_file "$jsonpath" --output_file "$globalplotpath" 2>&1 | tee -a "$logpath"
