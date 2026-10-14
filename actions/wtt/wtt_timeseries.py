@@ -23,6 +23,15 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
 INK, GRID = '#3b3b38', '#d9d8d2'
+REF_C = '#6b6a64'
+
+# Run 1 reference: totals over the v11 beam reflow files from 2024-07-09 00:00 CDT
+# to the last file (2024-07-12 03:50 CDT; 429 files, 71.4 h), calib_prompt_hits
+# and the default cuts in wtt_funcs.py: 220 WTT events in 71.4 h, and 109 of
+# 197081 beam spills with a WTT.
+RUN1_LABEL = 'Run 1 average (Jul 9-12 2024)'
+RUN1_WTT_EVENTS_PER_HOUR = 3.08
+RUN1_BEAM_SPILLS_WITH_WTT_PCT = 0.0553
 
 
 def gehrels(k):
@@ -84,7 +93,8 @@ def rolling(t, num, den, n, max_gap_s):
 def series(t, hours, n_wtt, n_beam, n_wtt_beam, n_rolling=12, max_gap_s=1800):
     """[(panel title, y label, [item, ...])]; an item is
     ('points', label, colour, marker, size, alpha, x, y, yerr_lo, yerr_hi),
-    with yerr None for no error bars, or ('line', label, colour, x, y)."""
+    with yerr None for no error bars, ('line', label, colour, x, y), or
+    ('ref', label, colour, value) for a horizontal reference line."""
     file_c, roll_c, day_c = '#9ec5f4', '#2a78d6', '#184f95'   # light / mid / dark blue ramp steps
     roll_label = 'rolling, %d files' % n_rolling
 
@@ -104,6 +114,8 @@ def series(t, hours, n_wtt, n_beam, n_wtt_beam, n_rolling=12, max_gap_s=1800):
     beam = [('points', 'per file', file_c, 'o', 3, 0.7, tb, 100.0 * k / nb, None, None),
             ('line', roll_label, roll_c, rx, 100.0 * ry),
             ('points', 'per day', day_c, 'D', 7, 1.0, dx, 100.0 * dk / dnb, 100.0 * dlo / dnb, 100.0 * dup / dnb)]
+    rate.append(('ref', RUN1_LABEL, REF_C, RUN1_WTT_EVENTS_PER_HOUR))
+    beam.append(('ref', RUN1_LABEL, REF_C, RUN1_BEAM_SPILLS_WITH_WTT_PCT))
     return [('WTT events per hour', 'WTT events / hour', rate),
             ('Beam spills with a WTT', 'beam spills with WTT [%]', beam)]
 
@@ -115,7 +127,9 @@ def crop(panels, t0):
     for name, ylabel, items in panels:
         new = []
         for it in items:
-            if it[0] == 'points':
+            if it[0] == 'ref':
+                new.append(it)
+            elif it[0] == 'points':
                 keep = np.array([x >= t0 for x in it[6]], dtype=bool)
                 sel = lambda a: None if a is None else np.asarray(a)[keep]
                 new.append(it[:6] + ([x for x, k in zip(it[6], keep) if k], sel(it[7]), sel(it[8]), sel(it[9])))
@@ -132,7 +146,10 @@ def plot_png(panels, output, title):
     fig, axs = plt.subplots(len(panels), 1, figsize=(11, 6.5), sharex=True)
     for ax, (name, ylabel, items) in zip(axs, panels):
         for it in items:
-            if it[0] == 'points':
+            if it[0] == 'ref':
+                _, label, colour, value = it
+                ax.axhline(value, color=colour, lw=1.5, ls='--', label='%s: %.3g' % (label, value), zorder=1)
+            elif it[0] == 'points':
                 _, label, colour, marker, size, alpha, x, y, elo, eup = it
                 ax.errorbar(x, y, yerr=None if elo is None else [elo, eup], fmt=marker, ms=size,
                             color=colour, mec='white', mew=0.5, ecolor=colour, elinewidth=1,
@@ -140,13 +157,16 @@ def plot_png(panels, output, title):
             else:
                 _, label, colour, x, y = it
                 ax.plot(x, y, color=colour, lw=2, label=label, zorder=2)
-        if all(len(it[6] if it[0] == 'points' else it[3]) == 0 for it in items):
+        if all(len(it[6] if it[0] == 'points' else it[3]) == 0 for it in items if it[0] != 'ref'):
             # e.g. the beam panel for cosmic-only runs
-            ax.text(0.5, 0.5, 'no %s in these files' % ('beam spills' if 'beam' in name.lower() else 'data'),
+            ax.text(0.5, 0.25, 'no %s in these files' % ('beam spills' if 'beam' in name.lower() else 'data'),
                     transform=ax.transAxes, ha='center', va='center', color=INK, fontsize=10)
         ax.set_title(name, loc='left', fontsize=10, color=INK)
         ax.set_ylabel(ylabel, color=INK)
         ax.set_ylim(bottom=0)
+        refs = [it[3] for it in items if it[0] == 'ref']
+        if refs:   # keep the reference line clear of the legend, e.g. on an empty panel
+            ax.set_ylim(top=max(ax.get_ylim()[1], 2.0 * max(refs)))
         ax.grid(True, color=GRID, lw=0.6)
         ax.set_axisbelow(True)
         for side in ('top', 'right'):
@@ -168,7 +188,12 @@ def plot_html(panels, files, output, title):
     plotly_marker = {'o': 'circle', 's': 'square', '^': 'triangle-up', 'D': 'diamond'}
     for row, (name, ylabel, items) in enumerate(panels, start=1):
         for it in items:
-            if it[0] == 'points':
+            if it[0] == 'ref':
+                _, label, colour, value = it
+                fig.add_hline(y=value, line=dict(color=colour, width=1.5, dash='dash'),
+                              annotation_text='%s: %.3g' % (label, value), annotation_position='top left',
+                              annotation_font=dict(size=10, color=colour), row=row, col=1)
+            elif it[0] == 'points':
                 _, label, colour, marker, size, alpha, x, y, elo, eup = it
                 per_file = len(x) == len(files)
                 fig.add_trace(go.Scatter(
