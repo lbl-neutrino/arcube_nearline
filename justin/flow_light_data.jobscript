@@ -21,22 +21,8 @@ fi
 did=$(echo "$did_pfn_rse" | cut -f1 -d' ')
 pfn=$(echo "$did_pfn_rse" | cut -f2 -d' ')
 
-tar_spack=/cvmfs/fifeuser3.opensciencegrid.org/sw/dune/8c80e4bba3a3e4f49e84c980d0f9054a2add653c/spack_cache.tar
-tar_venv=/cvmfs/fifeuser3.opensciencegrid.org/sw/dune/8c80e4bba3a3e4f49e84c980d0f9054a2add653c/nearline_venv.tar
-tar_scripts=/cvmfs/fifeuser3.opensciencegrid.org/sw/dune/8c80e4bba3a3e4f49e84c980d0f9054a2add653c/arcube_nearline.tar
-dir_flow=/cvmfs/fifeuser1.opensciencegrid.org/sw/dune/e1f0176a8e8903d940532bd461a20a36f688ab06/ndlar_flow
-
-tar xf "$tar_spack"             # creates spack_cache
-tar xf "$tar_venv"              # creates nearline.venv
-tar xf "$tar_scripts"           # creates arcube_nearline
-cp -r "$dir_flow" .             # creates ndlar_flow
-
-source /cvmfs/dune.opensciencegrid.org/spack/v1.1.1/setup-env.sh
-export SPACK_USER_CACHE_PATH=$PWD/spack_cache
-ls $SPACK_USER_CACHE_PATH
-date; echo activate
-spack env activate dunesw-10_21_01d00-justin-01_06_01-prototype
-date
+env_dir=/cvmfs/fifeuser4.opensciencegrid.org/sw/dune/10bba04d514dee870f62ce342ca5dddeace41a9a
+scripts_dir=/cvmfs/fifeuser4.opensciencegrid.org/sw/dune/d299877c1a74d42e1d95eb9b10cced0d0f52bbef/ndproto_nearline
 
 ND_NEARLINE_TAG=${ND_NEARLINE_TAG:-test}
 input_fname=$(echo "$did" | cut -f2 -d:)
@@ -45,22 +31,19 @@ output_fname=$(basename "$input_fname" .data).${ND_NEARLINE_TAG}.FLOW.hdf5
 ifdh cp "$pfn" .
 metacat file show -mj "$did" > "${input_fname}.json"
 
-date; echo deactivate
-spack env deactivate
-date; echo load
-spack load python@3.14.3/mkwcary
-date; echo source
-source nearline.venv/bin/activate
+source $env_dir/activate.sh
 
 # FIXME: Switch to Run3 yaml
 workflow='yamls/proto_nd_flow/workflows/light/light_event_building_mpd.yaml'
 
-(
-  cd ndlar_flow || exit
-  h5flow -c "$workflow" -i "../$input_fname" -o "../$output_fname"
-)
+input_file=$(realpath "$input_fname")
+output_file=$(realpath "$output_fname")
 
-python arcube_nearline/justin/dump_metadata.light_flow.py \
+pushd $env_dir/ndlar_flow
+h5flow -c "$workflow" -i "$(input_file)" -o "$(output_file)"
+popd
+
+python $scripts_dir/justin/dump_metadata.light_flow.py \
     "${input_fname}.json" "${output_fname}"
 
 echo "$did" > justin-processed-dids.txt
