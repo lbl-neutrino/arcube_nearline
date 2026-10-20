@@ -28,10 +28,16 @@ ND_NEARLINE_TAG=${ND_NEARLINE_TAG:-test}
 input_fname=$(echo "$did" | cut -f2 -d:)
 output_fname=$(basename "$input_fname" .data).${ND_NEARLINE_TAG}.FLOW.hdf5
 
-ifdh cp "$pfn" .
-metacat file show -mj "$did" > "${input_fname}.json"
+(
+  source /cvmfs/dune.opensciencegrid.org/spack/v1.2.2/setup-env.sh 
+  spack env activate dune-prototype
 
-source $env_dir/activate.sh
+  ifdh cp "$pfn" .
+  metacat file show -mj "$did" > "${input_fname}.json"
+)
+
+# do not source activate.sh; it points to /exp
+export PATH=$env_dir/env/bin:$PATH
 
 # FIXME: Switch to Run3 yaml
 workflow='yamls/proto_nd_flow/workflows/light/light_event_building_mpd.yaml'
@@ -40,7 +46,7 @@ input_file=$(realpath "$input_fname")
 output_file=$(realpath "$output_fname")
 
 pushd $env_dir/ndlar_flow
-h5flow -c "$workflow" -i "$(input_file)" -o "$(output_file)"
+h5flow -c "$workflow" -i "$input_file" -o "$output_file"
 popd
 
 python $scripts_dir/justin/dump_metadata.light_flow.py \
