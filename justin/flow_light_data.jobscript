@@ -12,6 +12,7 @@
 #     --jobscript flow_light_data.jobscript
 
 did_pfn_rse=$("$JUSTIN_PATH/justin-get-file")
+echo $did_pfn_rse
 
 if [[ $? != 0 ]]; then
     echo "Got nothing from justin-get-file; bailing"
