@@ -1,0 +1,37 @@
+* Building the SW env
+
+* Hosting the nearline_uploader
+Just run nearline_uploader.py in a directory containing =justin_eec_trusted.cert=, =server.crt=, =server.key=
+
+* Uploading plots
+#+begin_src bash
+#!/bin/bash
+
+did_pfn_rse=$("$JUSTIN_PATH/justin-get-file")
+
+if [[ $? != 0 ]]; then
+    echo "Got nothing from justin-get-file; bailing"
+    exit
+fi
+
+echo "$did_pfn_rse"
+did=$(echo $did_pfn_rse | cut -f1 -d' ')
+
+echo "Hello from $(hostname)!" > hello_grid.txt
+
+# temporary till the lab signs a new deal with sectigo
+cacert=/cvmfs/fifeuser3.opensciencegrid.org/sw/dune/a7b99bba5cfe81d4d1923c60afa0d259275ac2c6/labpix.crt
+auth=(--cacert "$cacert" --cert "$X509_USER_PROXY" --key "$X509_USER_PROXY")
+
+curl "${auth[@]}" --upload-file hello_grid.txt https://labpix.lbl.gov:55556/hello_grid2.txt
+
+echo "$did" > justin-processed-dids.txt
+#+end_src
+
+* Serving plots
+On labpix: nginx running on port 12257
+root is =/var/www/html=
+e.g. /plots
+
+
+* Submitting workflows
