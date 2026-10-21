@@ -92,6 +92,7 @@
 Just run nearline_uploader.py in a directory containing =justin_eec_trusted.crt=, =server.crt=, =server.key=
 
 * Uploading plots
+** On the grid
 #+begin_src bash
 #!/bin/bash
 
@@ -109,12 +110,23 @@ hello=hello_grid_run3.text
 echo "Hello from $(hostname)!" > $hello
 
 # temporary till the lab signs a new deal with sectigo
-cacert=/cvmfs/fifeuser2.opensciencegrid.org/sw/dune/d26879c78d4bccf045eb176152209da44644b115/labpix.crt
+cacert=/cvmfs/fifeuser1.opensciencegrid.org/sw/dune/e95c8a256a0133d467c5257ad7555de9cd9937a6/labpix.crt
 auth=(--cacert "$cacert" --cert "$X509_USER_PROXY" --key "$X509_USER_PROXY")
 
 curl "${auth[@]}" --upload-file $hello https://labpix.lbl.gov:55556/$hello
 
 echo "$did" > justin-processed-dids.txt
+#+end_src
+** On a GPVM
+#+begin_src bash
+hello=hello_gpvm_run3.text
+echo "Hello from $(hostname)!" > $hello
+
+# temporary till the lab signs a new deal with sectigo
+cacert=/cvmfs/fifeuser1.opensciencegrid.org/sw/dune/e95c8a256a0133d467c5257ad7555de9cd9937a6/labpix.crt
+auth=(--cacert "$cacert" --cert "/tmp/x509up_u$UID" --key "/tmp/x509up_u$UID" )
+
+curl "${auth[@]}" --upload-file $hello https://labpix.lbl.gov:55556/$hello
 #+end_src
 
 * Serving plots
