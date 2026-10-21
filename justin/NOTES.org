@@ -93,30 +93,8 @@ Just run nearline_uploader.py in a directory containing =justin_eec_trusted.crt=
 
 * Uploading plots
 ** On the grid
-#+begin_src bash
-#!/bin/bash
+See uploader/upload_test.jobscript
 
-did_pfn_rse=$("$JUSTIN_PATH/justin-get-file")
-
-if [[ $? != 0 ]]; then
-    echo "Got nothing from justin-get-file; bailing"
-    exit
-fi
-
-echo "$did_pfn_rse"
-did=$(echo $did_pfn_rse | cut -f1 -d' ')
-
-hello=hello_grid_run3.text
-echo "Hello from $(hostname)!" > $hello
-
-# temporary till the lab signs a new deal with sectigo
-cacert=/cvmfs/fifeuser1.opensciencegrid.org/sw/dune/e95c8a256a0133d467c5257ad7555de9cd9937a6/labpix.crt
-auth=(--cacert "$cacert" --cert "$X509_USER_PROXY" --key "$X509_USER_PROXY")
-
-curl "${auth[@]}" --upload-file $hello https://labpix.lbl.gov:55556/$hello
-
-echo "$did" > justin-processed-dids.txt
-#+end_src
 ** On a GPVM
 #+begin_src bash
 hello=hello_gpvm_run3.text
