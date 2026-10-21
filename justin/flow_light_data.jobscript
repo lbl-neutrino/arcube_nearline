@@ -39,8 +39,8 @@ output_fname=$(basename "$input_fname" .data).${ND_NEARLINE_TAG}.FLOW.hdf5
 # do not source activate.sh; it points to /exp
 export PATH=$env_dir/env/bin:$PATH
 
-# FIXME: Switch to Run3 yaml
-workflow='yamls/proto_nd_flow/workflows/light/light_event_building_mpd.yaml'
+# Run3 is using _Run2.yaml
+workflow='yamls/proto_nd_flow/workflows/light/light_event_building_mpd_Run2.yaml'
 
 input_file=$(realpath "$input_fname")
 output_file=$(realpath "$output_fname")
