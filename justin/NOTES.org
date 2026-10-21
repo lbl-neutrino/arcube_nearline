@@ -1,92 +1,27 @@
 * Building the SW env
- 3369  cd /exp/dune/app/users/mkramer/2x2_nearline_justIN/prep_tarball
- 3370  cd pixi
- 3371  cd envs/
- 3372  env | grep -i pixi
- 3373  ls *
- 3374  ls external/
- 3375  ls external/metacat/
- 3376  pixi add https://github.com/DUNE/ndlar_flow.git
- 3377  pixi add git://github.com/DUNE/ndlar_flow.git
- 3378  pixi add
- 3379  git add ndlar_flow@git+https://github.com/DUNE/ndlar_flow.git
- 3380  pixi add ndlar_flow@git+https://github.com/DUNE/ndlar_flow.git
- 3381  pixi add --pypi ndlar_flow@git+https://github.com/DUNE/ndlar_flow.git
- 3382  pixi add --pypi ndlar_flow@git+https://github.com/mjkramer/ndlar_flow.git@pixi-test
- 3383  echo $PATH
- 3384  pixi global install pixi-pack
- 3385  pixi-pack 
- 3386  pixi add python
- 3387  cd nearline_2x2
- 3388  pixi add 'python<3.15'
- 3389  pixi add h5py
- 3390  pixi add scikit-image
- 3391  pixi add --pypi h5flow@git+https://github.com/DUNE/h5flow
- 3392  pixi pack
- 3393  env | grep -i conda
- 3394  pixi global install rattler-build rattler-index
- 3395  mkdir -p ../conda-channel/noarch
- 3396  rattler-index fs ../conda-channel
- 3397  mkdir ../conda-recipes
- 3398  cd ../conda-recipes/
- 3399  pixi exec grayskull pypi --use-v1-format https://github.com/DUNE/h5flow
- 3400  cd h5flow/
- 3401  cat recipe.yaml 
- 3402  ls -l
- 3403  pixi exec grayskull pypi --use-v1-format https://github.com/DUNE/ndlar_flow
- 3404  rm -rf ndlar_flow/
- 3405  pixi exec grayskull pypi --use-v1-format https://github.com/mjkramer/ndlar_flow
- 3406  pixi exec grayskull pypi https://github.com/larpix/adc64format
- 3407  which rattler-build 
- 3408  rattler-build --help
- 3409  rattler-build build --help
- 3410  # rattler-build build --recipe adc64format/recipe.yaml --test skip 
- 3411  # rattler-build build --recipe adc64format/recipe.yaml --test skip --recipe adc64format/recipe.yaml --output-dir ../conda-channel -c conda-forge
- 3412  rattler-build build --help | less
- 3413  rattler-build build --recipe adc64format/recipe.yaml --test skip --recipe adc64format/recipe.yaml --output-dir ../conda-channel -c conda-forge
- 3414  rattler-build build --recipe h5flow/recipe.yaml --test skip --recipe adc64format/recipe.yaml --output-dir ../conda-channel -c conda-forge
- 3415  rattler-build build --recipe ndlar_flow/recipe.yaml --test skip --recipe adc64format/recipe.yaml --output-dir ../conda-channel -c conda-forge
- 3416  rm -rf nearline_2x2/
- 3417  pixi init
- 3418  rm pixi.toml 
- 3419  pixi init nearline_2x2
- 3420  pixi add 'python=3.14.*'
- 3421  realpath ../../conda-channel/
- 3422  vim pixi.toml 
- 3423  pixi add adc64format
- 3424  ls ../../conda-channel/
- 3425  ls ../../conda-channel/noarch/
- 3426  ls ../../conda-channel/linux-64/
- 3427  cd ../../conda-channel/
- 3428  rattler-build build --recipe ndlar_flow/recipe.yaml --test skip --recipe h5flow/recipe.yaml --output-dir ../conda-channel -c conda-forge
- 3429  ls ../conda-channel/
- 3430  ls ../conda-channel/linux-64/
- 3431  python --version
- 3432  ls ../conda-channel/noarch/
- 3433  vim h5flow/recipe.yaml 
- 3434  rattler-build build --recipe h5flow/recipe.yaml --test skip --output-dir ../conda-channel -c conda-forge
- 3435  wget https://github.com/mjkramer/ndlar_flow/archive/refs/tags/v5.0.1.tar.gz
- 3436  sha256sum v5.0.1.tar.gz 
- 3437  rm v5.0.1.tar.gz 
- 3438  wget https://github.com/mjkramer/ndlar_flow/archive/refs/tags/v5.0.2.tar.gz
- 3439  sha256sum v5.0.2.tar.gz 
- 3440  pixi add h5flow
- 3441  pixi add dbscan1d==0.2.3
- 3442  pixi add dbscan1d
- 3443  cd conda-recipes/
- 3444  cd ndlar_flow/
- 3445  vim recipe.yaml 
- 3446  curl -O- https://github.com/mjkramer/ndlar_flow/archive/refs/tags/v5.0.3.tar.gz | sha256sum
- 3447  curl https://github.com/mjkramer/ndlar_flow/archive/refs/tags/v5.0.3.tar.gz | sha256sum
- 3448  cd ../../conda-recipes/
- 3449  wget https://github.com/mjkramer/ndlar_flow/archive/refs/tags/v5.0.3.tar.gz
- 3450  sha256sum v5.0.3.tar.gz 
- 3451  vim ndlar_flow/recipe.yaml 
- 3452  rattler-build build --recipe ndlar_flow/recipe.yaml --test skip --output-dir ../conda-channel -c conda-forge
- 3453  cd mypixi/
-       mv environment.tar nearline_2x2_v0.0.0.tar 
- 3355  justin-cvmfs-upload nearline_2x2_v0.0.0.tar 
-
+#+begin_src  bash
+pixi global install rattler-build rattler-index
+mkdir -p ../conda-channel/noarch
+rattler-index fs ../conda-channel
+mkdir ../conda-recipes
+cd ../conda-recipes/
+pixi exec grayskull pypi https://github.com/larpix/adc64format
+pixi exec grayskull pypi https://github.com/DUNE/h5flow
+pixi exec grayskull pypi https://github.com/DUNE/ndlar_flow
+rattler-build build --recipe adc64format/recipe.yaml --test skip --recipe adc64format/recipe.yaml --output-dir ../conda-channel -c conda-forge
+rattler-build build --recipe h5flow/recipe.yaml --test skip --recipe adc64format/recipe.yaml --output-dir ../conda-channel -c conda-forge
+rattler-build build --recipe ndlar_flow/recipe.yaml --test skip --recipe adc64format/recipe.yaml --output-dir ../conda-channel -c conda-forge
+pixi init nearline_2x2
+cd nearline_2x2
+pixi add 'python=3.14.*'
+realpath ../../conda-channel/
+pixi add adc64format
+pixi add h5flow
+pixi add ndlar_flow
+pixi pack
+mv environment.tar nearline_2x2_v0.0.0.tar 
+justin-cvmfs-upload nearline_2x2_v0.0.0.tar 
+#+end_src
 
 * Hosting the nearline_uploader
 Just run nearline_uploader.py in a directory containing =justin_eec_trusted.crt=, =server.crt=, =server.key=
@@ -111,7 +46,6 @@ curl "${auth[@]}" --upload-file $hello https://labpix.lbl.gov:55556/$hello
 On labpix: nginx running on port 12257
 root is =/var/www/html=
 e.g. /plots
-
 
 * Submitting workflows
 see jobscript
