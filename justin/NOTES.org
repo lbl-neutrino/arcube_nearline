@@ -23,6 +23,20 @@ mv environment.tar nearline_2x2_v0.0.0.tar
 justin-cvmfs-upload nearline_2x2_v0.0.0.tar 
 #+end_src
 
+* Monitoring ingest / declaration daemons
+** Web interface
+#+begin_src bash
+ssh -L 8096:duneingestgpvm01:8096 -L 8080:dunedecladgpvm01:8080 dunegpvm01.fnal.gov
+#+end_src
+Then point browser to http://localhost:8096/fts-light/charts and http://localhost:8080/declad_demo/charts
+** Log files
+*** ingestd
+See =/exp/dune/app/home/dunepro/2x2_Minerva/ingestd_production/mover.log=
+*** declad
+See =/exp/dune/app/home/dunepro/declad_py311/logs=
+*** Those aren't being updated?
+Log in to duneingestgpvm01 and/or dunedecladgpvm01 and use =ps= to see what's actually running.
+
 * Hosting the nearline_uploader
 Just run nearline_uploader.py in a directory containing =justin_eec_trusted.crt=, =server.crt=, =server.key=
 
