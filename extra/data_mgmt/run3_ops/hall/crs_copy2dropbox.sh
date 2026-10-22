@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+src=$1; shift
+
+copy_one() {
+    f=$1; shift
+
+    f_meta="$f.json"
+
+    if [[ ! -f "$f_meta" ]]; then
+        echo "Missing metadata for $f. Skipping."
+        exit 1
+    fi
+
+    dest_dir=/data/DAQ
+
+    out_name=$(basename "$f" .h5).hdf5
+
+    f_out="$dest_dir/$out_name"
+
+    cp "$f" "$f_out"
+
+    f_out_meta="$f_out.json"
+
+    cp -i "$f_meta" "$f_out_meta.tmp"
+
+    cksum=$(xrdadler32 "$f_out" | awk '{print $1}')
+    size=$(stat -c %s "$f_out")
+
+    # my apologies
+    sed -i "s/\.h5\",/.hdf5\",/" "$f_out_meta.tmp"
+    sed -i "s/\"adler32\": \"[^\"]*\"/\"adler32\": \"$cksum\"/" "$f_out_meta.tmp"
+    sed -i "s/\"size\": [^,]*/\"size\": $size/" "$f_out_meta.tmp"
+    mv -i "$f_out_meta.tmp" "$f_out_meta"
+}
+
+while true; do
+    find "$src" -type f -print0 | while IFS= read -r -d '' file; do
+        f_out=/data/DAQ/$(basename "$file")
+        if [[ -e "$f_out" || -e "$f_out.copied" ]]; then
+            continue
+        fi
+        copy_one "$file"
+    done
+    sleep 60
+done
+
