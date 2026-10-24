@@ -28,7 +28,7 @@ def dump(json_infile: Path, data_outfile: Path):
         'namespace': NAMESPACE,
         'checksums': {'adler32': get_checksum(data_outfile)},
         'size': data_outfile.stat().st_size,
-        'parents': [f'neardet-2x2-lar-light:{Path(json_infile).stem}'],
+        'parents': [{'did': f'neardet-2x2-lar-light:{Path(json_infile).stem}'}],
     }
 
     result['metadata'] = {
