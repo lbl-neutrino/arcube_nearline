@@ -51,7 +51,7 @@ pushd /cvmfs/fifeuser4.opensciencegrid.org/sw/dune/10bba04d514dee870f62ce342ca5d
 python -m h5flow -c "$workflow" -i "$input_file" -o "$output_file"
 popd
 
-python $scripts_dir/justin/dump_metadata.light_flow.py \
+python $scripts_dir/ndproto_nearline/justin/dump_metadata.light_flow.py \
     "${input_fname}.json" "${output_fname}"
 
 echo "$did" > justin-processed-dids.txt
