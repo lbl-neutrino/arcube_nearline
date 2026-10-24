@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 ## Example command to submit this job:
 # justin simple-workflow \
