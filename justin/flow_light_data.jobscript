@@ -23,7 +23,7 @@ echo "$did_pfn_rse"
 did=$(echo "$did_pfn_rse" | cut -f1 -d' ')
 pfn=$(echo "$did_pfn_rse" | cut -f2 -d' ')
 
-env_dir=/cvmfs/fifeuser2.opensciencegrid.org/sw/dune/8feba1e3710c16e0743be5f75cf20fab531e9f95
+env_dir=/cvmfs/fifeuser2.opensciencegrid.org/sw/dune/e07e5598f52212421dd45041a24ad9b154a35dff
 export PATH=$env_dir/env/bin:$PATH
 export LD_LIBRARY_PATH=$env_dir/env/lib:$LD_LIBRARY_PATH
 export LD_PRELOAD=$env_dir/env/lib/libXrdPosixPreload.so:$LD_PRELOAD
