@@ -36,7 +36,7 @@ ND_NEARLINE_TAG=${ND_NEARLINE_TAG:-test}
 input_fname=$(echo "$did" | cut -f2 -d:)
 output_fname=$(basename "$input_fname" .data).${ND_NEARLINE_TAG}.FLOW.hdf5
 
-metacat file show -mj "$did" > "${input_fname}.json"
+python $(which metacat) file show -mj "$did" > "${input_fname}.json"
 ls -l
 
 # Run3 is using _Run2.yaml
@@ -46,7 +46,7 @@ output_file=$PWD/$output_fname
 
 # pushd $env_dir/ndlar_flow
 pushd /cvmfs/fifeuser4.opensciencegrid.org/sw/dune/10bba04d514dee870f62ce342ca5dddeace41a9a/ndlar_flow
-h5flow -c "$workflow" -i "$pfn" -o "$output_file"
+python -m h5flow -c "$workflow" -i "$pfn" -o "$output_file"
 popd
 
 python $scripts_dir/justin/dump_metadata.light_flow.py \
