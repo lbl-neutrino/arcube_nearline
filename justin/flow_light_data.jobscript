@@ -30,7 +30,7 @@ export LD_PRELOAD=$env_dir/env/lib/libXrdPosixPreload.so:$LD_PRELOAD
 export METACAT_SERVER_URL=https://metacat.fnal.gov:9443/dune_meta_prod/app
 export METACAT_AUTH_SERVER_URL=https://metacat.fnal.gov:8143/auth/dune
 
-scripts_dir=/cvmfs/fifeuser4.opensciencegrid.org/sw/dune/d299877c1a74d42e1d95eb9b10cced0d0f52bbef/ndproto_nearline
+scripts_dir=/cvmfs/fifeuser4.opensciencegrid.org/sw/dune/3b1a8f0cff605e0a566ea2785ca2926f42e6028d
 
 ND_NEARLINE_TAG=${ND_NEARLINE_TAG:-test}
 input_fname=$(echo "$did" | cut -f2 -d:)
