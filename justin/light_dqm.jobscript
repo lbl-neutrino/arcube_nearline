@@ -8,6 +8,7 @@
 #     --env ND_NEARLINE_SCRIPTS_DIR=$ND_NEARLINE_SCRIPTS_DIR \
 #     --jobscript light_dqm.jobscript
 
+set -euo pipefail
 source "$ND_NEARLINE_SCRIPTS_DIR/ndproto_nearline/justin/setup.inc.sh"
 
 xrdcp "$pfn" .
@@ -29,5 +30,11 @@ python3 light_dqm.py --input_path "/home/workspace/" \
                      --output_dir "$plotdir" \
                      --tmp_dir "$tmpdir" \
                      --file_syntax "$file_syntax" \
-                     --channel_status_file "$channel_status"\
-                     --start_run $start_run
+                     --channel_status_file "$channel_status" \
+                     --start_run "$start_run"
+
+auth=(--cert "$X509_USER_PROXY" --key "$X509_USER_PROXY")
+
+for plot in "$plotdir"/*.pdf; do
+    curl "${auth[@]}" --upload-file "$plot" "https://labpix.lbl.gov:55556/light_dqm/$(basename "$plot")"
+done
