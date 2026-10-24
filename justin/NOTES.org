@@ -44,6 +44,10 @@ Scripts:
 #+begin_src bash
 #+end_src
 
+* Authenticating to MetaCat
+metacat auth login -m token $USER
+token is taken from e.g. =/run/$UID/bt_u$UID= to update ~/.token_library
+
 * Monitoring ingest / declaration daemons
 ** Web interface
 #+begin_src bash
