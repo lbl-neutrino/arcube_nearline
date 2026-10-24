@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+
+## Example command to submit this job:
+# justin simple-workflow \
+#     --wall-seconds 1200 \
+#     --image fnal-wn-el9:9.7 \
+#     --mql "files from dune:all where core.run_type=neardet-2x2-lar-light and core.application.name=flow and core.runs=70011 limit 1" \
+#     --jobscript light_dqm.jobscript
+
+set -euo pipefail
+
+did_pfn_rse=$("$JUSTIN_PATH/justin-get-file")
+result=$?
+if [[ $result != 0 ]]; then
+    echo "Got nothing from justin-get-file; bailing"
+    exit
+fi
+echo "$did_pfn_rse"
+did=$(echo "$did_pfn_rse" | cut -f1 -d' ')
+pfn=$(echo "$did_pfn_rse" | cut -f2 -d' ')
+
+env_dir=/cvmfs/fifeuser2.opensciencegrid.org/sw/dune/8feba1e3710c16e0743be5f75cf20fab531e9f95
+export PATH=$env_dir/env/bin:$PATH
+export LD_LIBRARY_PATH=$env_dir/env/lib:$LD_LIBRARY_PATH
+export LD_PRELOAD=$env_dir/env/lib/libXrdPosixPreload.so:$LD_PRELOAD
+export METACAT_SERVER_URL=https://metacat.fnal.gov:9443/dune_meta_prod/app
+export METACAT_AUTH_SERVER_URL=https://metacat.fnal.gov:8143/auth/dune
+
+scripts_dir=/cvmfs/fifeuser2.opensciencegrid.org/sw/dune/592f8f2efa38a2c5c545b09c449a7f9b3454b077
+
+input_fname=$(echo "$did" | cut -f2 -d:)
+xrdcp "$pfn" .
+
+file_syntax=$(basename "$input_fname" .FLOW.hdf5 | sed 's/[0-9]\+$//')
+start_run=$(basename "$input_fname" .FLOW.hdf5 | sed -n 's/.*[^0-9]\([0-9]\+\)$/\1/p')
+echo "Starting run with p$start_run"
+
+cd "$scripts_dir/ndproto_nearline/actions/light_dqm"
+
+channel_status=$PWD/channel_status_warmRun2.csv
+
+plotdir=/home/workspace/plots
+tmpdir=/home/workspace/tmp
+mkdir -p "$plotdir" "$tmpdir"
+
+# light_dqm.py expects the trailing slash on input_path
+python3 light_dqm.py --input_path "/home/workspace/" \
+                     --output_dir "$plotdir" \
+                     --tmp_dir "$tmpdir" \
+                     --file_syntax "$file_syntax" \
+                     --channel_status_file "$channel_status"\
+                     --start_run $start_run
