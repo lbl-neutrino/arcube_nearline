@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import os
 import json
 from pathlib import Path
 from zlib import adler32
@@ -34,7 +35,7 @@ def dump(json_infile: Path, data_outfile: Path):
     result['metadata'] = {
         'core.application.family': 'python_framework',
         'core.application.name': 'flow',
-        'core.application.version': 'develop',
+        'core.application.version': os.getenv('ND_NEARLINE_TAG', 'develop'),
         'core.data_tier': 'reco-recalibrated',
         'core.data_stream': md_in['core.data_stream'],
         'core.start_time': md_in['core.start_time'],
