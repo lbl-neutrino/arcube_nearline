@@ -22,15 +22,12 @@ fi
 did=$(echo "$did_pfn_rse" | cut -f1 -d' ')
 pfn=$(echo "$did_pfn_rse" | cut -f2 -d' ')
 
-env_dir=/cvmfs/fifeuser2.opensciencegrid.org/sw/dune/932f7ef92e3b45ed60a7324ac0d0075b4e98b281
+env_dir=/cvmfs/fifeuser1.opensciencegrid.org/sw/dune/509aab22ee2b523961cee0781ef9dc712c5df520
 export PATH=$env_dir/env/bin:$PATH
 export LD_LIBRARY_PATH=$env_dir/env/lib:$LD_LIBRARY_PATH
 export LD_PRELOAD=$env_dir/env/lib/libXrdPosixPreload.so:$LD_PRELOAD
 export METACAT_SERVER_URL=https://metacat.fnal.gov:9443/dune_meta_prod/app
 export METACAT_AUTH_SERVER_URL=https://metacat.fnal.gov:8143/auth/dune
-
-htgettoken -a htvaultprod.fnal.gov -i dune
-export BEARER_TOKEN_FILE=/run/user/$UID/bt_u$UID
 
 scripts_dir=/cvmfs/fifeuser4.opensciencegrid.org/sw/dune/d299877c1a74d42e1d95eb9b10cced0d0f52bbef/ndproto_nearline
 
@@ -40,7 +37,7 @@ output_fname=$(basename "$input_fname" .data).${ND_NEARLINE_TAG}.FLOW.hdf5
 
 xrdcp "$pfn" .
 ls -l
-metacat auth login -m token mkramer
+# metacat auth login -m token mkramer
 metacat file show -mj "$did" > "${input_fname}.json"
 ls -l
 
