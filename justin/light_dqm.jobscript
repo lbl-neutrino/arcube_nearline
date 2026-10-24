@@ -5,9 +5,10 @@
 #     --wall-seconds 1200 \
 #     --image fnal-wn-el9:9.7 \
 #     --mql "files from dune:all where core.run_type=neardet-2x2-lar-light and core.application.name=flow and core.runs=70011 limit 1" \
+#     --env ND_NEARLINE_SCRIPTS_DIR=$ND_NEARLINE_SCRIPTS_DIR \
 #     --jobscript light_dqm.jobscript
 
-source "$ND_NEARLINE_SCRIPTS_DIR/setup.inc.sh"
+source "$ND_NEARLINE_SCRIPTS_DIR/ndproto_nearline/justin/setup.inc.sh"
 
 xrdcp "$pfn" .
 
