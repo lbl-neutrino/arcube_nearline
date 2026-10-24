@@ -1,4 +1,5 @@
 * Building the SW env
+** env
 #+begin_src  bash
 pixi global install rattler-build rattler-index
 mkdir -p ../conda-channel/noarch
@@ -18,9 +19,29 @@ realpath ../../conda-channel/
 pixi add adc64format
 pixi add h5flow
 pixi add ndlar_flow
+pixi add matplotlib awkward emoji pandas
 pixi pack
-mv environment.tar nearline_2x2_v0.0.0.tar 
-justin-cvmfs-upload nearline_2x2_v0.0.0.tar 
+cd somewhere
+pixi exec pixi-unpack /path/to/environment.tar
+# clean up (see below)
+tar cf env.tar env
+justin-cvmfs-upload env.tar
+
+#+end_src
+*** clean up
+#+begin_src bash
+for f in env/bin/*; do
+  [ -f "$f" ] && [ ! -L "$f" ] || continue
+  if head -n 1 "$f" | grep -q '^#!'"$(pwd)/env/bin/python.*"; then
+    echo "$f"
+    sed -i '1s|^#!.*|#!/usr/bin/env python3|' "$f"
+  fi
+done
+#+end_src
+** scripts
+
+Scripts:
+#+begin_src bash
 #+end_src
 
 * Monitoring ingest / declaration daemons

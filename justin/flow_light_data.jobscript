@@ -8,7 +8,7 @@
 #     --lifetime-days 7 \
 #     --image fnal-wn-el9:9.7 \
 #     --mql "files from neardet-2x2-lar-light:neardet-2x2-lar-light_50017 limit 1" \
-#     --env ND_NEARLINE_TAG=test_simple \
+#     --env ND_NEARLINE_TAG=test_simple_noStream \
 #     --jobscript flow_light_data.jobscript
 
 did_pfn_rse=$("$JUSTIN_PATH/justin-get-file")
@@ -22,20 +22,21 @@ fi
 did=$(echo "$did_pfn_rse" | cut -f1 -d' ')
 pfn=$(echo "$did_pfn_rse" | cut -f2 -d' ')
 
-env_dir=/cvmfs/fifeuser4.opensciencegrid.org/sw/dune/10bba04d514dee870f62ce342ca5dddeace41a9a
+env_dir=/cvmfs/fifeuser1.opensciencegrid.org/sw/dune/845170f2b47be899596ff158284ea6a9d9f84565/env
+export PATH=$env_dir/bin:$PATH
+export LD_LIBRARY_PATH=$env_dir/lib:$LD_LIBRARY_PATH
+export LD_PRELOAD=$env_dir/lib/libXrdPosixPreload.so:$LD_PRELOAD
+export METACAT_SERVER_URL=https://metacat.fnal.gov:9443/dune_meta_prod/app
+export METACAT_AUTH_SERVER_URL=https://metacat.fnal.gov:8143/auth/dune
+
 scripts_dir=/cvmfs/fifeuser4.opensciencegrid.org/sw/dune/d299877c1a74d42e1d95eb9b10cced0d0f52bbef/ndproto_nearline
 
 ND_NEARLINE_TAG=${ND_NEARLINE_TAG:-test}
 input_fname=$(echo "$did" | cut -f2 -d:)
 output_fname=$(basename "$input_fname" .data).${ND_NEARLINE_TAG}.FLOW.hdf5
 
-(
-  source /cvmfs/dune.opensciencegrid.org/spack/v1.2.2/setup-env.sh 
-  spack env activate dune-prototype
-
-  ifdh cp "$pfn" .
-  metacat file show -mj "$did" > "${input_fname}.json"
-)
+xrdcp "$pfn" .
+metacat file show -mj "$did" > "${input_fname}.json"
 
 # do not source activate.sh; it points to /exp
 export PATH=$env_dir/env/bin:$PATH
