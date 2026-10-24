@@ -36,7 +36,10 @@ input_fname=$(echo "$did" | cut -f2 -d:)
 output_fname=$(basename "$input_fname" .data).${ND_NEARLINE_TAG}.FLOW.hdf5
 
 xrdcp "$pfn" .
+ls -l
+metacat auth login -m token $USER
 metacat file show -mj "$did" > "${input_fname}.json"
+ls -l
 
 # do not source activate.sh; it points to /exp
 export PATH=$env_dir/env/bin:$PATH
