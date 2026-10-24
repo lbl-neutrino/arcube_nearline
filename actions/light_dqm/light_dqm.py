@@ -105,6 +105,8 @@ ptps_16 = np.array([ptps16bit]*8)
 ptps_14 = ptps_16 / adc14_16
 ptps_V = ptps_16 * (ADC_V_range) / (adc14_max * adc14_16)
 
+EXT = f".{os.getenv('ND_NEARLINE_TAG')}.FLOW.hdf5"
+
 def get_ptps(units):
     """
     Get peak-to-peak values for the specified units.
@@ -1196,10 +1198,10 @@ def main():
         raise
 
     # search for any files in --input_path starting with args.name_conv and ending with '.FLOW.hdf5'
-    all_files = [f for f in os.listdir(args.input_path) if f.startswith(args.file_syntax) and f.endswith('.FLOW.hdf5')]
+    all_files = [f for f in os.listdir(args.input_path) if f.startswith(args.file_syntax) and f.endswith(EXT)]
     all_files.sort()            # HERE BE DRAGONS
     n_available_files = len(all_files)
-    print(f"Found {n_available_files} files in {args.input_path} starting with {args.file_syntax} and ending with .FLOW.hdf5")
+    print(f"Found {n_available_files} files in {args.input_path} starting with {args.file_syntax} and ending with {EXT}")
     if n_available_files == 0:
         print("No files found. Exiting.")
         sys.exit(1)
@@ -1221,7 +1223,7 @@ def main():
         # HACK: Use start_run literally, instead of as an index into a (wrongly-)sorted list
         # (this is OK for the nearline, which just runs on one file at a time)
         #filename = f'{args.input_path}{args.file_syntax}{i_file}.FLOW.hdf5'
-        filename = f'{args.input_path}{args.file_syntax}{i_file:05d}.FLOW.hdf5'
+        filename = f'{args.input_path}{args.file_syntax}{i_file:05d}{EXT}'
         # just the file name, no path and cutting off .FLOW.hdf5
         # short_filename = all_files[i_file][:-10]
         short_filename = os.path.basename(filename)[:-10]
