@@ -39,4 +39,4 @@ for plot in "$plotdir"/*.pdf; do
     curl "${auth[@]}" --upload-file "$plot" "https://labpix.lbl.gov:55556/light_dqm/$(basename "$plot")"
 done
 
-echo "$did" > justin-processed-dids.txt
+echo "$did" > /home/workspace/justin-processed-dids.txt

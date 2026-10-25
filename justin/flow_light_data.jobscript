@@ -34,4 +34,4 @@ popd
 python $scripts_dir/ndproto_nearline/justin/dump_metadata.light_flow.py \
     "${input_fname}.json" "${output_fname}"
 
-echo "$did" > justin-processed-dids.txt
+echo "$did" > /home/workspace/justin-processed-dids.txt
