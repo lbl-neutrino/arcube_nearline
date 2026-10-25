@@ -34,7 +34,7 @@ mkdir -p "$plotdir" "$tmpdir"
 #                      --start_run "$start_run"
 
 auth=(--cert "$X509_USER_PROXY" --key "$X509_USER_PROXY" --cacert $env_dir/env/ssl/cacert.pem --capath /etc/grid-security/certificates)
-ls -l /etc/pki/tls/certs/ca-bundle.crt
+ls -l $env_dir/env/ssl/cacert.pem
 ls -ld /etc/grid-security/certificates
 
 echo hello > $plotdir/foo.pdf
