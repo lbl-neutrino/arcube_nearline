@@ -33,7 +33,7 @@ mkdir -p "$plotdir" "$tmpdir"
 #                      --channel_status_file "$channel_status" \
 #                      --start_run "$start_run"
 
-auth=(--cert "$X509_USER_PROXY" --key "$X509_USER_PROXY" --cacert /etc/pki/tls/certs/ca-bundle.crt --capath /etc/grid-security/certificates)
+auth=(--cert "$X509_USER_PROXY" --key "$X509_USER_PROXY" --cacert $env_dir/env/ssl/cacert.pem --capath /etc/grid-security/certificates)
 ls -l /etc/pki/tls/certs/ca-bundle.crt
 ls -ld /etc/grid-security/certificates
 
