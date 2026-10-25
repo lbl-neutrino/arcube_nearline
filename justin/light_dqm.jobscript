@@ -33,7 +33,7 @@ python3 light_dqm.py --input_path "/home/workspace/" \
                      --channel_status_file "$channel_status" \
                      --start_run "$start_run"
 
-auth=(--cert "$X509_USER_PROXY" --key "$X509_USER_PROXY")
+auth=(--cert "$X509_USER_PROXY" --key "$X509_USER_PROXY" --cacert /etc/pki/tls/certs/ca-bundle.crt --capath /etc/grid-security/certificates)
 
 for plot in "$plotdir"/*.pdf; do
     curl "${auth[@]}" --upload-file "$plot" "https://labpix.lbl.gov:55556/light_dqm/$(basename "$plot")"
