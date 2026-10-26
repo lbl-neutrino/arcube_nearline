@@ -22,7 +22,7 @@ copy_one() {
 }
 
 while true; do
-    find "$src" -type f -print0 | while IFS= read -r -d '' file; do
+    find "$src" -type f -name '*.data' -print0 | while IFS= read -r -d '' file; do
         f_out=/data/DAQ/$(basename "$file")
         if [[ -e "$f_out" || -e "$f_out.copied" ]]; then
             continue
