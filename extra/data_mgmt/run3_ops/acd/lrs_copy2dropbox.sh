@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+set -euo pipefail
+
+src=$1; shift
+
 copy_one() {
     srcfile=$1; shift
 
