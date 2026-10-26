@@ -7,18 +7,17 @@
 #     --scope usertests \
 #     --lifetime-days 7 \
 #     --image fnal-wn-el9:9.7 \
-#     --mql "files from vd-coldbox-pixels:vd_coldbox_pixels_1 where core.application.name=crs_daq limit 1" \
+#     --mql "files from vd-coldbox-pixels:vd-coldbox-pixels_1 where core.application.name=crs_daq" \
 #     --env ND_NEARLINE_TAG=test \
-#     --env ND_NEARLINE_SCRIPTS_DIR=$ND_NEARLINE_SCRIPTS_DIR \
+#     --env ND_NEARLINE_SCRIPTS_DIR=/cvmfs/fifeuser1.opensciencegrid.org/sw/dune/363f882722ab8dc8e82cc9ec75d521b43251ceb8 \
 #     --jobscript packetize_charge_data.jobscript
 
 ## Example command to test this job:
 # ./justin-test-jobscript.al9 \
 #     --mql "files from vd-coldbox-pixels:vd-coldbox-pixels_1 where core.application.name=crs_daq limit 1" \
 #     --env ND_NEARLINE_TAG=test \
-#     --env ND_NEARLINE_SCRIPTS_DIR=$ND_NEARLINE_SCRIPTS_DIR \
+#     --env ND_NEARLINE_SCRIPTS_DIR=/cvmfs/fifeuser1.opensciencegrid.org/sw/dune/363f882722ab8dc8e82cc9ec75d521b43251ceb8 \
 #     --jobscript packetize_charge_data.jobscript
-
 
 source "$ND_NEARLINE_SCRIPTS_DIR/ndproto_nearline/justin/setup.inc.sh"
 
