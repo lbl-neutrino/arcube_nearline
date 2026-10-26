@@ -3,6 +3,7 @@
 set -euo pipefail
 
 src=$1; shift
+dest=${1:-/data/DAQ}; shift
 
 copy_one() {
     f=$1; shift
@@ -14,11 +15,9 @@ copy_one() {
         exit 1
     fi
 
-    dest_dir=/data/DAQ
-
     out_name=$(basename "$f" .h5).hdf5
 
-    f_out="$dest_dir/$out_name"
+    f_out="$dest/$out_name"
 
     cp "$f" "$f_out"
 
@@ -38,7 +37,7 @@ copy_one() {
 
 while true; do
     find "$src" -type f -name '*.h5' -mmin +5 -print0 | while IFS= read -r -d '' file; do
-        f_out=/data/DAQ/$(basename "$file" .h5).hdf5
+        f_out=$dest/$(basename "$file" .h5).hdf5
         if [[ -e "$f_out" || -e "$f_out.copied" ]]; then
             continue
         fi
