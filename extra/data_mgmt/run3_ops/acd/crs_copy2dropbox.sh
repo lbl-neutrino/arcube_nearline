@@ -38,7 +38,7 @@ copy_one() {
 
 while true; do
     find "$src" -type f -name '*.h5' -mmin +5 -print0 | while IFS= read -r -d '' file; do
-        f_out=/data/DAQ/$(basename "$file")
+        f_out=/data/DAQ/$(basename "$file" .h5).hdf5
         if [[ -e "$f_out" || -e "$f_out.copied" ]]; then
             continue
         fi
