@@ -13,8 +13,8 @@
 #     --jobscript packetize_charge_data.jobscript
 
 ## Example command to test this job:
-# justin-test-jobscript.al9 \
-#     --mql "files from vd-coldbox-pixels:vd_coldbox_pixels_1 where core.application.name=crs_daq limit 1" \
+# ./justin-test-jobscript.al9 \
+#     --mql "files from vd-coldbox-pixels:vd-coldbox-pixels_1 where core.application.name=crs_daq limit 1" \
 #     --env ND_NEARLINE_TAG=test \
 #     --env ND_NEARLINE_SCRIPTS_DIR=$ND_NEARLINE_SCRIPTS_DIR \
 #     --jobscript packetize_charge_data.jobscript
@@ -22,7 +22,7 @@
 
 source "$ND_NEARLINE_SCRIPTS_DIR/ndproto_nearline/justin/setup.inc.sh"
 
-output_fname=$(basename "$input_fname" .hdf5).${ND_NEARLINE_TAG}.PACKET.hdf5
+output_fname=$(basename "$input_fname" .hdf5 | sed 's/^binary-//').${ND_NEARLINE_TAG}.PACKET.hdf5
 
 python "$(which metacat)" file show -mj "$did" > "${input_fname}.json"
 
