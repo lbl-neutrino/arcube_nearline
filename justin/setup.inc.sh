@@ -12,7 +12,7 @@ echo "$did_pfn_rse"
 did=$(echo "$did_pfn_rse" | cut -f1 -d' ')
 pfn=$(echo "$did_pfn_rse" | cut -f2 -d' ')
 
-default_env_dir=/cvmfs/fifeuser2.opensciencegrid.org/sw/dune/e07e5598f52212421dd45041a24ad9b154a35dff
+default_env_dir=/cvmfs/fifeuser4.opensciencegrid.org/sw/dune/a814e4fd48c5195883cbdbf1f2f666d4f266edd7
 env_dir=${ND_NEARLINE_ENV_DIR:-$default_env_dir}
 export PATH="$env_dir/env/bin:$PATH"
 export LD_LIBRARY_PATH="$env_dir/env/lib:$LD_LIBRARY_PATH"
