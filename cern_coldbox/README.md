@@ -6,8 +6,8 @@ Nothing is uploaded anywhere: outputs are plain files on disk.
 
 ```
 watch_latestfile.py                      # checks input_folder every --interval, runs the workflow on new files
-plot_latestfile_workflow.yaml            # workflow: raw binary -> packet -> pedestal plot
-packetize.sh                             # raw binary file -> packet file (larpix-control)
+plot_latestfile_workflow.yaml            # workflow: raw or packet file -> packet -> pedestal plot
+packetize.sh                             # checks raw vs packet; raw -> packet file (larpix-control)
 plot_panel_ped.sh                        # packet file -> pedestal PNG + JSON
 plot_panel_ped/make_mean_std_json.py     # per-channel pedestal mean/std -> JSON
 plot_panel_ped/make_crp_panel_ped.py     # JSON + geometry -> mean/RMS map of the 60 CRP tiles
@@ -37,7 +37,7 @@ Edit `input_folder` and `output_folder` in `plot_latestfile_workflow.yaml`, then
 ./watch_latestfile.py plot_latestfile_workflow.yaml --interval 30s  # or 5m, 1h, 90 (seconds)
 ```
 
-Every interval it looks for `binary-*.hdf5` files in `input_folder` and processes each
+Every interval it looks for `*.hdf5` / `*.h5` files in `input_folder` and processes each
 new one once its size has not changed since the previous check and it has not been
 modified for `stability_check_time` seconds. Files already in the folder when it
 starts are skipped (unless they are still being written); to process those:
@@ -45,25 +45,30 @@ starts are skipped (unless they are still being written); to process those:
 ```bash
 export COLDBOX_NEARLINE_DIR=/path/to/ndproto_nearline/cern_coldbox
 workflow-runner batch plot_latestfile_workflow.yaml
-workflow-runner process plot_latestfile_workflow.yaml /ABSOLUTE/path/to/binary-X.hdf5
+workflow-runner process plot_latestfile_workflow.yaml /ABSOLUTE/path/to/X.hdf5
 ```
 
-Outputs, for `binary-X.hdf5`:
+Outputs, for an input file `X.hdf5`:
 
 ```
-<output_folder>/convert_to_packet/binary-X.hdf5   # packet file
-<output_folder>/panel_ped/binary-X.png            # pedestal mean / RMS map
-<output_folder>/panel_ped/binary-X.json           # per-channel [mean, std]
+<output_folder>/convert_to_packet/X.hdf5   # packet file (symlink to X.hdf5 if it already was one)
+<output_folder>/panel_ped/X.png            # pedestal mean / RMS map
+<output_folder>/panel_ped/X.json           # per-channel [mean, std]
 ```
 
 ## Scripts on their own
 
 ```bash
-./packetize.sh RAW_FILE PACKET_FILE
+./packetize.sh INPUT_FILE PACKET_FILE
 ./plot_panel_ped.sh PACKET_FILE OUTPUT_PNG
 ```
 
-- `packetize.sh` runs the same conversion as `justin/packetize_charge_data.jobscript`:
+- `packetize.sh` first checks what `INPUT_FILE` is, from its HDF5 content (not its name):
+  - `packets` dataset: already a packet file, `PACKET_FILE` becomes a symlink to it;
+  - `msgs` + `msg_headers`: raw file, converted;
+  - anything else, or not readable as HDF5: the file fails with a message.
+
+  Raw files get the same conversion as `justin/packetize_charge_data.jobscript`:
   `--asic-version 1:2,2:2,3:3,4:3,5:2,6:2 --format-version 3.0 --direct`
   (override the map with the `ASIC_VERSION` env variable).
 - `plot_panel_ped.sh` uses data packets only (`packet_type == 1`, `valid_parity == 1`).

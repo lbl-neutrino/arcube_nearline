@@ -1,14 +1,16 @@
 name: plot_latestfile_workflow
-description: Raw LArPix file -> packet file -> pedestal mean/RMS maps of the CRP
+description: Raw or packet LArPix file -> packet file -> pedestal mean/RMS maps of the CRP
 
-# EDIT: folder where the DAQ writes the raw binary files
+# EDIT: folder where the DAQ writes the raw binary (or packet) files
 input_folder: /Users/ceciliaferrari/home/cecilia/Documents/PostDoc/DUNE software/CERN_coldbox_nearline/data_2
 # EDIT: where outputs go (must NOT be inside input_folder)
 output_folder: /Users/ceciliaferrari/home/cecilia/Documents/PostDoc/DUNE software/CERN_coldbox_nearline/plots_ped
 
+# raw and packet files: step 1 checks which one each file is
+# (any other .hdf5/.h5 file in input_folder fails at step 1 with a message)
 file_patterns:
-  - "binary-*.hdf5"
-  - "binary-*.h5"
+  - "*.hdf5"
+  - "*.h5"
 
 recursive: true
 
@@ -21,6 +23,7 @@ stability_check_interval: 3
 # Paths are quoted because workflow-runner does not quote them.
 steps:
   # Step 1: raw -> <output_folder>/convert_to_packet/<name>.hdf5
+  #         (packet input -> symlink to it there, no conversion)
   - name: "convert_to_packet"
     command: "\"$COLDBOX_NEARLINE_DIR/packetize.sh\" '{input}' '{packet_file:.hdf5}'"
 
